@@ -1,9 +1,13 @@
-mmcv>=2.0.0rc4
-mmengine>=0.6.0,<1.0.0
+numpy==1.25.2
+# mmcv>=2.0.0rc4
+# mmengine>=0.6.0,<1.0.0
 munkres
 regex
 scipy
 titlecase
-torch>1.6
+torch==2.1.0
 torchvision
 xtcocotools>=1.13
+# pip uninstall -y xtcocotools
+# pip install --no-cache-dir --force-reinstall xtcocotools
+# pip uninstall -y openxlab

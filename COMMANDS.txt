@@ -1,0 +1,18 @@
+IMPORTANT: use cuda-12.1
+##################################################################################
+
+Train: 
+
+
+Test: 
+python tools/test.py projects/rtmpose/rtmpose/body_2d_keypoint/rtmpose-m_8xb256-420e_coco-256x192.py mmpose/models/_models/pose/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth --dump pretrain_det_standing_general_val.pkl
+
+Vis:
+python tools/visualize_results.py --results pretrain_det_standing_general_val.pkl --images-dir data/coco_standing_general_val/val2017 --output pretrain_det_standing_general_val.mp4
+
+Export Results:
+python tools/convert_pkl_to_json.py --results pretrain_det_standing_general_val.pkl --output pretrain_det_standing_general_val.json
+
+Export Model:
+Using mmpose env: run the code in test.py to torchscript export
+Using model_conversion_env: torch_to_coreml.py

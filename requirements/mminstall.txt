@@ -1,3 +1,9 @@
-mmcv>=2.0.0,<3.0.0
-mmdet>=3.0.0,<3.3.0
-mmengine>=0.4.0,<1.0.0
+# mmcv>=2.0.0,<3.0.0
+# mmdet>=3.0.0,<3.3.0
+# mmengine>=0.4.0,<1.0.0
+
+pip install -U openmim
+mim install mmcv==2.1.0
+mim install mmengine==0.7.3
+mim install mmdet==3.2.0
+mim install mmpose==1.2.0

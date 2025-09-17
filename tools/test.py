@@ -158,8 +158,48 @@ def main():
 
         runner.register_hook(SaveMetricHook(), 'LOWEST')
 
-    # start testing
-    runner.test()
+    # Access the underlying PyTorch model for conversion
+    model = runner.model
+    # print("MODEL", model)
+    for name, module in model.named_modules():
+        print(name, ":", module.__class__.__name__)
+    print("MODEL TYPE", type(model))
+
+    import torch
+    import torch.nn as nn
+
+    class TorchscriptWrapper(nn.Module):
+        def __init__(self, pose_model):
+            super().__init__()
+            self.backbone = pose_model.backbone
+            self.head = pose_model.head
+
+        def forward(self, x):
+            feats = self.backbone(x)
+            outs = self.head(feats)
+            return outs
+    
+    ts_model = TorchscriptWrapper(model)
+    ts_model.eval()
+
+    device = torch.device("cpu")
+    ts_model.to(device)
+    dummy_input = torch.randn(1, 3, 256, 192, device=device)
+            
+    try:
+        # First try tracing
+        traced_model = torch.jit.trace(ts_model, dummy_input)
+        traced_model.save("rtmpose-m_traced.pt")
+        print("✅ Traced model exported successfully!")
+    except Exception as e:
+        print(f"Tracing failed: {e}")
+        # Fall back to scripting
+        scripted_model = torch.jit.script(ts_model)
+        scripted_model.save("rtmpose_scripted.pt")
+        print("✅ Scripted model exported successfully!")
+
+    # # start testing
+    # runner.test()
 
 
 if __name__ == '__main__':

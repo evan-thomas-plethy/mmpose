@@ -109,12 +109,16 @@ venv.bak/
 mmpose/.mim
 /models
 /data
+/visualization
+/onnx2tf
 .vscode
 .idea
 *.pkl
 *.pkl.json
 *.log.json
 *.npy
+*.json
+*.mp4
 work_dirs/
 docs/**/topics/
 docs/**/papers/*.md
@@ -130,5 +134,8 @@ docs/**/modelzoo.md
 
 # Pytorch
 *.pth
+*.pt
+*.mlmodel
+*.onnx
 
 *.DS_Store

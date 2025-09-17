@@ -1,0 +1,18 @@
+conda create -n mmpose python=3.10 -y
+conda activate mmpose
+python -c "import sys, os, numpy, torch; print('py', sys.version); print('numpy', numpy.__version__); print('torch', torch.__version__); print('cuda', torch.version.cuda, torch.cuda.is_available())"
+pip install -r requirements/readthedocs.txt 
+conda deactivate
+conda activate mmpose
+python -c "import sys, os, numpy, torch; print('py', sys.version); print('numpy', numpy.__version__); print('torch', torch.__version__); print('cuda', torch.version.cuda, torch.cuda.is_available())"
+pip install .
+conda deactivate
+conda activate mmpose
+pip install -U openmim
+mim install mmcv==2.1.0
+mim install mmengine==0.7.3
+mim install mmdet==3.2.0
+mim install mmpose==1.2.0
+conda deactivate
+conda activate mmpose
+pip install yapf==0.32.0

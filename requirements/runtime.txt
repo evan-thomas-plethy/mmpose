@@ -2,9 +2,9 @@ chumpy
 json_tricks
 matplotlib
 munkres
-numpy
+numpy==1.25.2
 opencv-python
 pillow
 scipy
 torchvision
-xtcocotools>=1.12
+xtcocotools==1.14.3
