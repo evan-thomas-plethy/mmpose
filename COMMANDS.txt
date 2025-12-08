@@ -7,6 +7,9 @@ Train:
 Test: 
 python tools/test.py projects/rtmpose/rtmpose/body_2d_keypoint/rtmpose-m_8xb256-420e_coco-256x192.py mmpose/models/_models/pose/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth --dump pretrain_det_standing_general_val.pkl
 
+Publish:
+python tools/misc/publish_model.py mmpose/models/_models/pose/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth ./rtmpose-m_publish.pth
+
 Vis:
 python tools/visualize_results.py --results pretrain_det_standing_general_val.pkl --images-dir data/coco_standing_general_val/val2017 --output pretrain_det_standing_general_val.mp4
 
