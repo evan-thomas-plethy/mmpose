@@ -1,35 +1,37 @@
 _base_ = ['../../../_base_/default_runtime.py']
 
-# runtime
-max_epochs = 420
-stage2_num_epochs = 30
-base_lr = 4e-3
+# Load pretrained checkpoint for fine-tuning
+load_from = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-s_simcc-aic-coco_pt-aic-coco_420e-256x192-fcb2599b_20230126.pth'
 
-train_cfg = dict(max_epochs=max_epochs, val_interval=10)
+# runtime - optimized for fine-tuning
+max_epochs = 50
+stage2_num_epochs = 10
+base_lr = 1e-3  # Lower learning rate for fine-tuning
+
+train_cfg = dict(max_epochs=max_epochs, val_interval=1)
 randomness = dict(seed=21)
 
-# optimizer
+# optimizer - optimized for fine-tuning
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=base_lr, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=base_lr, weight_decay=0.),
     paramwise_cfg=dict(
         norm_decay_mult=0, bias_decay_mult=0, bypass_duplicate=True))
 
-# learning rate
+# learning rate - optimized for fine-tuning
 param_scheduler = [
     dict(
         type='LinearLR',
-        start_factor=1.0e-5,
+        start_factor=1.0e-4,  # Lower start factor for fine-tuning
         by_epoch=False,
         begin=0,
-        end=1000),
+        end=500),
     dict(
-        # use cosine lr from 210 to 420 epoch
         type='CosineAnnealingLR',
-        eta_min=base_lr * 0.05,
-        begin=max_epochs // 2,
+        eta_min=base_lr * 0.01,  # Lower minimum LR for fine-tuning
+        begin=max_epochs // 5,  # Start cosine annealing earlier
         end=max_epochs,
-        T_max=max_epochs // 2,
+        T_max=max_epochs - max_epochs // 5,
         by_epoch=True,
         convert_to_iter_based=True),
 ]
@@ -59,21 +61,15 @@ model = dict(
         type='CSPNeXt',
         arch='P5',
         expand_ratio=0.5,
-        deepen_factor=0.67,
-        widen_factor=0.75,
+        deepen_factor=0.33,
+        widen_factor=0.5,
         out_indices=(4, ),
         channel_attention=True,
         norm_cfg=dict(type='SyncBN'),
-        act_cfg=dict(type='SiLU'),
-        init_cfg=dict(
-            type='Pretrained',
-            prefix='backbone.',
-            checkpoint='https://download.openmmlab.com/mmpose/v1/projects/'
-            'rtmposev1/cspnext-m_udp-aic-coco_210e-256x192-f2f7d6f6_20230130.pth'  # noqa
-        )),
+        act_cfg=dict(type='SiLU')),
     head=dict(
         type='RTMCCHead',
-        in_channels=768,
+        in_channels=512,
         out_channels=17,
         input_size=codec['input_size'],
         in_featuremap_size=tuple([s // 32 for s in codec['input_size']]),
@@ -94,20 +90,14 @@ model = dict(
             beta=10.,
             label_softmax=True),
         decoder=codec),
-    test_cfg=dict(flip_test=True, ))
+    test_cfg=dict(flip_test=True))
 
 # base dataset settings
 dataset_type = 'CocoDataset'
 data_mode = 'topdown'
-data_root = 'data/'
+data_root = 'data/coco/'
 
 backend_args = dict(backend='local')
-# backend_args = dict(
-#     backend='petrel',
-#     path_mapping=dict({
-#         f'{data_root}': 's3://openmmlab/datasets/',
-#         f'{data_root}': 's3://openmmlab/datasets/'
-#     }))
 
 # pipelines
 train_pipeline = [
@@ -132,7 +122,7 @@ train_pipeline = [
                 min_holes=1,
                 min_height=0.2,
                 min_width=0.2,
-                p=1.0),
+                p=1.),
         ]),
     dict(type='GenerateTarget', encoder=codec),
     dict(type='PackPoseInputs')
@@ -175,62 +165,22 @@ train_pipeline_stage2 = [
     dict(type='PackPoseInputs')
 ]
 
-# train datasets
-dataset_coco = dict(
-    type='RepeatDataset',
-    dataset=dict(
-        type=dataset_type,
-        data_root=data_root,
-        data_mode=data_mode,
-        ann_file='coco/annotations/person_keypoints_train2017.json',
-        data_prefix=dict(img='detection/coco/train2017/'),
-        pipeline=[],
-    ),
-    times=3)
-
-dataset_aic = dict(
-    type='AicDataset',
-    data_root=data_root,
-    data_mode=data_mode,
-    ann_file='aic/annotations/aic_train.json',
-    data_prefix=dict(img='pose/ai_challenge/ai_challenger_keypoint'
-                     '_train_20170902/keypoint_train_images_20170902/'),
-    pipeline=[
-        dict(
-            type='KeypointConverter',
-            num_keypoints=17,
-            mapping=[
-                (0, 6),
-                (1, 8),
-                (2, 10),
-                (3, 5),
-                (4, 7),
-                (5, 9),
-                (6, 12),
-                (7, 14),
-                (8, 16),
-                (9, 11),
-                (10, 13),
-                (11, 15),
-            ])
-    ],
-)
-
-# data loaders
+# data loaders - optimized for fine-tuning (reduced batch size for memory)
 train_dataloader = dict(
-    batch_size=128 * 2,
+    batch_size=32,
     num_workers=4,
     persistent_workers=True,
     sampler=dict(type='DefaultSampler', shuffle=True),
     dataset=dict(
-        type='CombinedDataset',
-        metainfo=dict(from_file='configs/_base_/datasets/coco.py'),
-        datasets=[dataset_coco, dataset_aic],
+        type=dataset_type,
+        data_root=data_root,
+        data_mode=data_mode,
+        ann_file='annotations/person_keypoints_train2017.json',
+        data_prefix=dict(img='train2017/'),
         pipeline=train_pipeline,
-        test_mode=False,
     ))
 val_dataloader = dict(
-    batch_size=64,
+    batch_size=16,
     num_workers=4,
     persistent_workers=True,
     drop_last=False,
@@ -239,24 +189,27 @@ val_dataloader = dict(
         type=dataset_type,
         data_root=data_root,
         data_mode=data_mode,
-        ann_file='coco/annotations/person_keypoints_val2017.json',
-        # bbox_file='data/coco/person_detection_results/'
-        # 'COCO_val2017_detections_AP_H_56_person.json',
-        data_prefix=dict(img='detection/coco/val2017/'),
+        ann_file='annotations/person_keypoints_val2017.json',
+        data_prefix=dict(img='val2017/'),
         test_mode=True,
         pipeline=val_pipeline,
     ))
 test_dataloader = val_dataloader
 
-# hooks
+# hooks - optimized for fine-tuning
 default_hooks = dict(
-    checkpoint=dict(save_best='coco/AP', rule='greater', max_keep_ckpts=1))
+    checkpoint=dict(
+        type='CheckpointHook',
+        interval=5,
+        save_best='coco/AP',
+        rule='greater',
+        max_keep_ckpts=3))
 
 custom_hooks = [
     dict(
         type='EMAHook',
         ema_type='ExpMomentumEMA',
-        momentum=0.0002,
+        momentum=0.0001,  # Lower momentum for fine-tuning
         update_buffers=True,
         priority=49),
     dict(
@@ -268,5 +221,6 @@ custom_hooks = [
 # evaluators
 val_evaluator = dict(
     type='CocoMetric',
-    ann_file=data_root + 'coco/annotations/person_keypoints_val2017.json')
+    ann_file=data_root + 'annotations/person_keypoints_val2017.json')
 test_evaluator = val_evaluator
+

@@ -16,3 +16,9 @@ mim install mmpose==1.2.0
 conda deactivate
 conda activate mmpose
 pip install yapf==0.32.0
+pip install albumentations==1.3.1 --no-deps
+pip install scikit-image==0.21.0 --no-deps
+pip install lazy-loader==0.4 --no-deps
+pip install qudida==0.0.4 --no-deps
+pip install scikit-learn==1.3.2 --no-deps
+pip install joblib==1.3.2 --no-deps

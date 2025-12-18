@@ -1,11 +1,13 @@
 IMPORTANT: use cuda-12.1
+AND for every session:
+export PYTHONPATH=/home/ubuntu/visionAI/mmpose:$PYTHONPATH
 ##################################################################################
 
 Train: 
-
+python tools/train.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune.py
 
 Test: 
-python tools/test.py projects/rtmpose/rtmpose/body_2d_keypoint/rtmpose-m_8xb256-420e_coco-256x192.py mmpose/models/_models/pose/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth --dump pretrain_det_standing_general_val.pkl
+python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_aic-coco-256x192.py mmpose/models/_models/pose/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth --dump pretrain_det_standing_general_val.pkl
 
 Publish:
 python tools/misc/publish_model.py mmpose/models/_models/pose/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth ./rtmpose-m_publish.pth

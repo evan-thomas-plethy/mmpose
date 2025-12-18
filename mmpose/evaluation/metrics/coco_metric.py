@@ -569,13 +569,13 @@ class CocoMetric(BaseMetric):
 
         if self.iou_type == 'keypoints_crowd':
             stats_names = [
-                'AP', 'AP .5', 'AP .75', 'AR', 'AR .5', 'AR .75', 'AP(E)',
-                'AP(M)', 'AP(H)'
+                'AP', 'AP .5', 'AP .75', 'AR', 'AR .5', 'AR .75', 'AP_E',
+                'AP_M', 'AP_H'
             ]
         else:
             stats_names = [
-                'AP', 'AP .5', 'AP .75', 'AP (M)', 'AP (L)', 'AR', 'AR .5',
-                'AR .75', 'AR (M)', 'AR (L)'
+                'AP', 'AP .5', 'AP .75', 'AP_M', 'AP_L', 'AR', 'AR .5',
+                'AR .75', 'AR_M', 'AR_L'
             ]
 
         info_str = list(zip(stats_names, coco_eval.stats))

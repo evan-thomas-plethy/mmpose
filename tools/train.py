@@ -2,6 +2,7 @@
 import argparse
 import os
 import os.path as osp
+from datetime import datetime
 
 from mmengine.config import Config, DictAction
 from mmengine.runner import Runner
@@ -69,6 +70,22 @@ def parse_args():
     # will pass the `--local-rank` parameter to `tools/train.py` instead
     # of `--local_rank`.
     parser.add_argument('--local_rank', '--local-rank', type=int, default=0)
+    # MLflow arguments
+    parser.add_argument(
+        '--mlflow-tracking-uri',
+        type=str,
+        default='http://35.165.139.156:5000',
+        help='MLflow tracking server URI. If provided, enables MLflow logging.')
+    parser.add_argument(
+        '--mlflow-experiment-name',
+        type=str,
+        default=None,
+        help='MLflow experiment name (defaults to config filename)')
+    parser.add_argument(
+        '--mlflow-run-name',
+        type=str,
+        default=None,
+        help='MLflow run name (defaults to timestamp)')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -137,6 +154,55 @@ def merge_args(cfg, args):
     return cfg
 
 
+def add_mlflow_backend(cfg, args):
+    """Add MLflowVisBackend to the visualizer if MLflow is enabled."""
+    if args.mlflow_tracking_uri is None:
+        return cfg
+    
+    # Set experiment name (default to config filename without extension)
+    if args.mlflow_experiment_name is None:
+        exp_name = osp.splitext(osp.basename(args.config))[0]
+    else:
+        exp_name = args.mlflow_experiment_name
+    
+    # Set run name (default to timestamp)
+    if args.mlflow_run_name is None:
+        run_name = datetime.now().strftime("%Y%m%d_%H%M%S")
+    else:
+        run_name = args.mlflow_run_name
+    
+    # Create MLflowVisBackend config
+    mlflow_backend = dict(
+        type='MLflowVisBackend',
+        tracking_uri=args.mlflow_tracking_uri,
+        exp_name=exp_name,
+        run_name=run_name,
+    )
+    
+    # Ensure vis_backends exists and add MLflow backend
+    if not hasattr(cfg, 'vis_backends') or cfg.vis_backends is None:
+        cfg.vis_backends = [dict(type='LocalVisBackend')]
+    
+    # Check if MLflowVisBackend is already configured
+    has_mlflow = any(
+        backend.get('type') == 'MLflowVisBackend' 
+        for backend in cfg.vis_backends
+    )
+    
+    if not has_mlflow:
+        cfg.vis_backends.append(mlflow_backend)
+        print(f"MLflow logging enabled:")
+        print(f"  Tracking URI: {args.mlflow_tracking_uri}")
+        print(f"  Experiment: {exp_name}")
+        print(f"  Run name: {run_name}")
+    
+    # Update visualizer to use the new vis_backends
+    if hasattr(cfg, 'visualizer') and cfg.visualizer is not None:
+        cfg.visualizer.vis_backends = cfg.vis_backends
+    
+    return cfg
+
+
 def main():
     args = parse_args()
 
@@ -145,6 +211,9 @@ def main():
 
     # merge CLI arguments to config
     cfg = merge_args(cfg, args)
+
+    # Add MLflow backend if tracking URI is provided
+    cfg = add_mlflow_backend(cfg, args)
 
     # set preprocess configs to model
     if 'preprocess_cfg' in cfg:
