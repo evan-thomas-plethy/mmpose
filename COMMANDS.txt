@@ -1,23 +1,31 @@
 IMPORTANT: use cuda-12.1
 AND for every session:
 export PYTHONPATH=/home/ubuntu/visionAI/mmpose:$PYTHONPATH
+    To resolve this issue: Traceback (most recent call last): 596, in call_endpointameter 'metrics[3].name' supplied: Names may only contain alphanumerics, underscores (_), dashes (-), periods (.), spaces ( ), colon(:) and slashes (/).
 ##################################################################################
 
 Train: 
-python tools/train.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune.py
+Single experiment:
+python tools/train.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_heel_slides.py \
+    --mlflow-experiment-name "rtmpose-m_heel_slides" \
+    --mlflow-run-name "v1_lr0.1_backbone"
+
+Sweep:
+python experiments/run_sweep.py experiments/sweep_config.yaml
 
 Test: 
-python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_aic-coco-256x192.py mmpose/models/_models/pose/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth --dump pretrain_det_standing_general_val.pkl
-
-Publish:
-python tools/misc/publish_model.py mmpose/models/_models/pose/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth ./rtmpose-m_publish.pth
+python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192.py mmpose/models/_models/pose/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth --dump pretrain.pkl
+python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192.py work_dirs/rtmpose-m_8xb256-420e_coco-256x192_finetune/epoch_25.pth --dump default_finetune.pkl
 
 Vis:
-python tools/visualize_results.py --results pretrain_det_standing_general_val.pkl --images-dir data/coco_standing_general_val/val2017 --output pretrain_det_standing_general_val.mp4
+python tools/visualize_results.py --results pretrain.pkl --images-dir data/coco/val2017 --output pretrain.mp4
 
 Export Results:
 python tools/convert_pkl_to_json.py --results pretrain_det_standing_general_val.pkl --output pretrain_det_standing_general_val.json
 
-Export Model:
+Publish:
+python tools/misc/publish_model.py mmpose/models/_models/pose/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth ./rtmpose-m_publish.pth
+
+Export Model: -- Unsure if this is deprecated. Be sure to review evan_thomas mmdeploy repo for most up to date.
 Using mmpose env: run the code in test.py to torchscript export
 Using model_conversion_env: torch_to_coreml.py

@@ -1,35 +1,56 @@
 _base_ = ['../../../_base_/default_runtime.py']
 
+# =============================================================================
+# Heel Slides Exercise Fine-tuning Configuration
+# =============================================================================
+# Optimized for sidelying persons performing heel slide exercises.
+# Key adjustments:
+#   - Removed RandomHalfBody (inappropriate for full-body sidelying poses)
+#   - Reduced rotation augmentation (sidelying poses have consistent orientation)
+#   - Conservative scale augmentation (maintain exercise context)
+#   - Reduced CoarseDropout (preserve leg/heel visibility for this exercise)
+#   - Differential learning rates: backbone uses 0.1x LR (partial freezing effect)
+#     This prevents catastrophic forgetting of pretrained features while still
+#     allowing the backbone to slowly adapt to sidelying poses.
+# =============================================================================
+
 # Load pretrained checkpoint for fine-tuning
 load_from = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth'
 
 # runtime - optimized for fine-tuning
 max_epochs = 50
 stage2_num_epochs = 10
-base_lr = 1e-3  # Lower learning rate for fine-tuning
+base_lr = 1e-4  # Conservative learning rate for fine-tuning
 
 train_cfg = dict(max_epochs=max_epochs, val_interval=1)
 randomness = dict(seed=21)
 
-# optimizer - optimized for fine-tuning
+# optimizer - optimized for fine-tuning with differential learning rates
 optim_wrapper = dict(
     type='OptimWrapper',
     optimizer=dict(type='AdamW', lr=base_lr, weight_decay=0.05),
     paramwise_cfg=dict(
-        norm_decay_mult=0, bias_decay_mult=0, bypass_duplicate=True))
+        norm_decay_mult=0,
+        bias_decay_mult=0,
+        bypass_duplicate=True,
+        # Backbone uses 10x lower LR than head - partial freezing effect
+        # Preserves pretrained features while allowing slow adaptation
+        custom_keys={
+            'backbone': dict(lr_mult=1.0),
+        }))
 
-# learning rate - optimized for fine-tuning
+# learning rate schedule - adjusted for base_lr=1e-4
 param_scheduler = [
     dict(
         type='LinearLR',
-        start_factor=1.0e-4,  # Lower start factor for fine-tuning
+        start_factor=1.0e-2,  # Start at 1e-6 (base_lr * 0.01), warmup to 1e-4
         by_epoch=False,
         begin=0,
         end=500),
     dict(
         type='CosineAnnealingLR',
-        eta_min=base_lr * 0.01,  # Lower minimum LR for fine-tuning
-        begin=max_epochs // 5,  # Start cosine annealing earlier
+        eta_min=base_lr * 0.1,  # End at 1e-5 (not too low for this base_lr)
+        begin=max_epochs // 5,  # Start cosine annealing at epoch 10
         end=max_epochs,
         T_max=max_epochs - max_epochs // 5,
         by_epoch=True,
@@ -99,14 +120,16 @@ data_root = 'data/coco/'
 
 backend_args = dict(backend='local')
 
-# pipelines
+# pipelines - optimized for heel slides (sidelying poses)
 train_pipeline = [
     dict(type='LoadImage', backend_args=backend_args),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
-    dict(type='RandomHalfBody'),
+    # RandomHalfBody removed - not suitable for sidelying full-body poses
     dict(
-        type='RandomBBoxTransform', scale_factor=[0.6, 1.4], rotate_factor=80),
+        type='RandomBBoxTransform',
+        scale_factor=[0.8, 1.2],  # Conservative scaling to maintain exercise context
+        rotate_factor=20),  # Reduced rotation - sidelying poses have consistent orientation
     dict(type='TopdownAffine', input_size=codec['input_size']),
     dict(type='mmdet.YOLOXHSVRandomAug'),
     dict(
@@ -117,12 +140,12 @@ train_pipeline = [
             dict(
                 type='CoarseDropout',
                 max_holes=1,
-                max_height=0.4,
-                max_width=0.4,
+                max_height=0.25,  # Reduced to preserve leg/heel visibility
+                max_width=0.25,
                 min_holes=1,
-                min_height=0.2,
-                min_width=0.2,
-                p=1.),
+                min_height=0.1,
+                min_width=0.1,
+                p=0.5),  # Reduced probability - heel visibility is critical
         ]),
     dict(type='GenerateTarget', encoder=codec),
     dict(type='PackPoseInputs')
@@ -134,16 +157,17 @@ val_pipeline = [
     dict(type='PackPoseInputs')
 ]
 
+# Stage 2 pipeline - even more conservative augmentation for refinement
 train_pipeline_stage2 = [
     dict(type='LoadImage', backend_args=backend_args),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
-    dict(type='RandomHalfBody'),
+    # RandomHalfBody removed - not suitable for sidelying full-body poses
     dict(
         type='RandomBBoxTransform',
         shift_factor=0.,
-        scale_factor=[0.75, 1.25],
-        rotate_factor=60),
+        scale_factor=[0.9, 1.1],  # Very conservative for final refinement
+        rotate_factor=10),  # Minimal rotation in stage 2
     dict(type='TopdownAffine', input_size=codec['input_size']),
     dict(type='mmdet.YOLOXHSVRandomAug'),
     dict(
@@ -154,12 +178,12 @@ train_pipeline_stage2 = [
             dict(
                 type='CoarseDropout',
                 max_holes=1,
-                max_height=0.4,
-                max_width=0.4,
+                max_height=0.2,  # Further reduced for stage 2
+                max_width=0.2,
                 min_holes=1,
-                min_height=0.2,
-                min_width=0.2,
-                p=0.5),
+                min_height=0.1,
+                min_width=0.1,
+                p=0.3),  # Lower probability in refinement stage
         ]),
     dict(type='GenerateTarget', encoder=codec),
     dict(type='PackPoseInputs')

@@ -171,6 +171,9 @@ def add_mlflow_backend(cfg, args):
     else:
         run_name = args.mlflow_run_name
     
+    # Set work_dir to work_dirs/<experiment_name>/<run_name>
+    cfg.work_dir = osp.join('./work_dirs', exp_name, run_name)
+    
     # Create MLflowVisBackend config
     mlflow_backend = dict(
         type='MLflowVisBackend',
@@ -195,11 +198,12 @@ def add_mlflow_backend(cfg, args):
         print(f"  Tracking URI: {args.mlflow_tracking_uri}")
         print(f"  Experiment: {exp_name}")
         print(f"  Run name: {run_name}")
+        print(f"  Work dir: {cfg.work_dir}")
     
     # Update visualizer to use the new vis_backends
     if hasattr(cfg, 'visualizer') and cfg.visualizer is not None:
         cfg.visualizer.vis_backends = cfg.vis_backends
-    
+
     return cfg
 
 
