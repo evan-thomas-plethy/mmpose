@@ -99,7 +99,7 @@ model = dict(
 # base dataset settings
 dataset_type = 'CocoDataset'
 data_mode = 'topdown'
-data_root = 'data/coco/'
+data_root = 'data/coco_general_val/'
 
 backend_args = dict(backend='local')
 # backend_args = dict(

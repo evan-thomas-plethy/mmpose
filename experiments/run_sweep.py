@@ -49,6 +49,9 @@ def run_experiment(
     name = experiment['name']
     overrides = experiment.get('overrides', {})
     
+    # Compute work_dir (same logic as train.py)
+    work_dir = f"work_dirs/{mlflow_config['experiment_name']}/{name}"
+    
     # Build the command
     cmd_parts = [
         sys.executable,  # Use current Python interpreter
@@ -69,6 +72,7 @@ def run_experiment(
     print("\n" + "=" * 80)
     print(f"EXPERIMENT: {name}")
     print("=" * 80)
+    print(f"Work dir: {work_dir}")
     print(f"Command: {cmd}")
     print("-" * 80)
     
@@ -76,7 +80,7 @@ def run_experiment(
         print("[DRY RUN] Skipping execution")
         return 0
     
-    # Run the command
+    # Run the training command
     result = subprocess.run(cmd, shell=True, cwd=Path(__file__).parent.parent)
     
     if result.returncode != 0:
@@ -156,4 +160,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

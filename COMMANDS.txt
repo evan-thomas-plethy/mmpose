@@ -6,19 +6,53 @@ export PYTHONPATH=/home/ubuntu/visionAI/mmpose:$PYTHONPATH
 
 Train: 
 Single experiment:
-python tools/train.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_heel_slides.py \
-    --mlflow-experiment-name "rtmpose-m_heel_slides" \
-    --mlflow-run-name "v1_lr0.1_backbone"
+python tools/train.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_heel_slides_long_train.py \
+    --mlflow-experiment-name "rtmpose-m_heel_slides_augmented_dataset" \
+    --mlflow-run-name "dataset_2x"
 
 Sweep:
 python experiments/run_sweep.py experiments/sweep_config.yaml
+# Options:
+#   --dry-run              Print commands without executing
+#   --experiment NAME      Run only a specific experiment
+# General validation is handled by GeneralValHook in the config
 
 Test: 
-python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192.py mmpose/models/_models/pose/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth --dump pretrain.pkl
-python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192.py work_dirs/rtmpose-m_8xb256-420e_coco-256x192_finetune/epoch_25.pth --dump default_finetune.pkl
+# Basic test of pretrained model on primary dataset
+python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-s_8xb256-420e_coco-256x192.py \
+    mmpose/models/_models/pose/rtmpose-s_simcc-aic-coco_pt-aic-coco_420e-256x192-fcb2599b_20230126.pth \
+    --dump s_pretrain_val.pkl \
+    --work-dir work_dirs/s_pretrain_val
+
+# Evaluate pretrained model on BOTH datasets and log to MLflow (for baseline comparison)
+python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-s_8xb256-420e_coco-256x192_finetune_heel_slides.py \
+    mmpose/models/_models/pose/rtmpose-s_simcc-aic-coco_pt-aic-coco_420e-256x192-fcb2599b_20230126.pth \
+    --eval-general \
+    --mlflow-tracking-uri http://35.165.139.156:5000 \
+    --mlflow-experiment-name "rtmpose-s_heel_slides_rotation" \
+    --mlflow-run-name "pretrain_baseline" \
+    --work-dir work_dirs/pretrain_baseline
+
+# Test a finetuned checkpoint on a specific dataset
+python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_heel_slides.py \
+    work_dirs/rtmpose-m_heel_slides/backbone_lr_mult_0.1_BN_frozen_True/best_coco_AP_epoch_3.pth \
+    --work-dir work_dirs/test_best_heel_slides \
+    --dump backbone_lr_mult_0.1_BN_frozen_True.pkl
+
+# Test a finetuned checkpoint on both datasets
+python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_heel_slides.py \
+    work_dirs/rtmpose-m_heel_slides/backbone_lr_mult_0.1_BN_frozen_True/best_coco_AP_epoch_25.pth \
+    --eval-general \
+    --work-dir work_dirs/finetune_eval
+
+# Copy run metrics/artifacts from one mlflow experiment to another
+# Update this file accordingly, then run
+python tools/copy_mlflow_run_metrics.py
 
 Vis:
-python tools/visualize_results.py --results pretrain.pkl --images-dir data/coco/val2017 --output pretrain.mp4
+python tools/visualize_results.py --results backbone_lr_mult_0.1_BN_frozen_True.pkl --images-dir data/coco/val2017 --output backbone_lr_mult_0.1_BN_frozen_True.mp4
+OR if path is being doubled
+python tools/visualize_results.py --results backbone_lr_mult_0.1_BN_frozen_True.pkl --images-dir . --output backbone_lr_mult_0.1_BN_frozen_True.mp4
 
 Export Results:
 python tools/convert_pkl_to_json.py --results pretrain_det_standing_general_val.pkl --output pretrain_det_standing_general_val.json

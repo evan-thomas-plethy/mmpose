@@ -1,37 +1,62 @@
 _base_ = ['../../../_base_/default_runtime.py']
 
+# =============================================================================
+# Heel Slides Exercise Fine-tuning Configuration (RTMPose-S) (50 Epochs)
+# =============================================================================
+# Extended training version for more thorough fine-tuning.
+# Key adjustments from 15-epoch version:
+#   - 50 epochs for deeper adaptation to heel slides domain
+#   - Extended stage2 (last 15 epochs) for refinement
+#   - Adjusted LR schedule: warmup over 2 epochs, cosine from epoch 5
+#   - Lower final LR (eta_min) for finer convergence
+#   - Checkpoint every 5 epochs
+#
+# Trade-offs:
+#   - More epochs = better heel slides performance
+#   - But also more forgetting on general poses
+#   - Monitor general_val AP to detect overfitting to domain
+# =============================================================================
+
 # Load pretrained checkpoint for fine-tuning
 load_from = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-s_simcc-aic-coco_pt-aic-coco_420e-256x192-fcb2599b_20230126.pth'
 
-# runtime - optimized for fine-tuning
+# runtime - extended training
 max_epochs = 50
-stage2_num_epochs = 10
-base_lr = 1e-3  # Lower learning rate for fine-tuning
+stage2_num_epochs = 15  # Last 15 epochs use refined augmentation
+base_lr = 1e-4  # Conservative learning rate for fine-tuning
 
 train_cfg = dict(max_epochs=max_epochs, val_interval=1)
 randomness = dict(seed=21)
 
-# optimizer - optimized for fine-tuning
+# optimizer - optimized for fine-tuning with differential learning rates
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=base_lr, weight_decay=0.),
+    optimizer=dict(type='AdamW', lr=base_lr, weight_decay=0.05),
     paramwise_cfg=dict(
-        norm_decay_mult=0, bias_decay_mult=0, bypass_duplicate=True))
+        norm_decay_mult=0,
+        bias_decay_mult=0,
+        bypass_duplicate=True,
+        # Backbone uses lower LR than head - partial freezing effect
+        # Preserves pretrained features while allowing slow adaptation
+        custom_keys={
+            'backbone': dict(lr_mult=0.1),
+        }))
 
-# learning rate - optimized for fine-tuning
+# learning rate schedule - adjusted for 50-epoch training
+# With 8000 samples, batch_size=32: ~250 iters/epoch
 param_scheduler = [
     dict(
         type='LinearLR',
-        start_factor=1.0e-4,  # Lower start factor for fine-tuning
+        start_factor=1.0e-2,  # Start at 1e-6, warmup to 1e-4
         by_epoch=False,
         begin=0,
-        end=500),
+        end=500),  # ~2 epochs warmup
     dict(
         type='CosineAnnealingLR',
-        eta_min=base_lr * 0.01,  # Lower minimum LR for fine-tuning
-        begin=max_epochs // 5,  # Start cosine annealing earlier
+        eta_min=base_lr * 0.01,  # End at 1e-6 (lower for extended training)
+        begin=5,  # Start cosine annealing at epoch 5 (after peak)
         end=max_epochs,
-        T_max=max_epochs - max_epochs // 5,
+        T_max=max_epochs - 5,
         by_epoch=True,
         convert_to_iter_based=True),
 ]
@@ -61,15 +86,19 @@ model = dict(
         type='CSPNeXt',
         arch='P5',
         expand_ratio=0.5,
-        deepen_factor=0.33,
-        widen_factor=0.5,
+        deepen_factor=0.33,  # RTMPose-S specific
+        widen_factor=0.5,    # RTMPose-S specific
         out_indices=(4, ),
         channel_attention=True,
         norm_cfg=dict(type='SyncBN'),
-        act_cfg=dict(type='SiLU')),
+        act_cfg=dict(type='SiLU'),
+        # Keep BatchNorm in eval mode during training to prevent running
+        # statistics from shifting to heel slides domain. Critical when using
+        # low backbone LR (lr_mult=0.1) or fully frozen backbone (lr_mult=0).
+        norm_eval=True),
     head=dict(
         type='RTMCCHead',
-        in_channels=512,
+        in_channels=512,  # RTMPose-S specific
         out_channels=17,
         input_size=codec['input_size'],
         in_featuremap_size=tuple([s // 32 for s in codec['input_size']]),
@@ -95,18 +124,21 @@ model = dict(
 # base dataset settings
 dataset_type = 'CocoDataset'
 data_mode = 'topdown'
-data_root = 'data/coco/'
+data_root = 'data/coco/'  # Heel slides data
+general_val_data_root = 'data/coco_general_val/'  # General exercise validation
 
 backend_args = dict(backend='local')
 
-# pipelines
+# pipelines - optimized for heel slides (sidelying poses)
 train_pipeline = [
     dict(type='LoadImage', backend_args=backend_args),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
-    dict(type='RandomHalfBody'),
+    # RandomHalfBody removed - not suitable for sidelying full-body poses
     dict(
-        type='RandomBBoxTransform', scale_factor=[0.6, 1.4], rotate_factor=80),
+        type='RandomBBoxTransform',
+        scale_factor=[0.8, 1.2],  # Conservative scaling to maintain exercise context
+        rotate_factor=20),  # Reduced rotation - sidelying poses have consistent orientation
     dict(type='TopdownAffine', input_size=codec['input_size']),
     dict(type='mmdet.YOLOXHSVRandomAug'),
     dict(
@@ -117,12 +149,12 @@ train_pipeline = [
             dict(
                 type='CoarseDropout',
                 max_holes=1,
-                max_height=0.4,
-                max_width=0.4,
+                max_height=0.25,  # Reduced to preserve leg/heel visibility
+                max_width=0.25,
                 min_holes=1,
-                min_height=0.2,
-                min_width=0.2,
-                p=1.),
+                min_height=0.1,
+                min_width=0.1,
+                p=0.5),  # Reduced probability - heel visibility is critical
         ]),
     dict(type='GenerateTarget', encoder=codec),
     dict(type='PackPoseInputs')
@@ -134,16 +166,17 @@ val_pipeline = [
     dict(type='PackPoseInputs')
 ]
 
+# Stage 2 pipeline - even more conservative augmentation for refinement
 train_pipeline_stage2 = [
     dict(type='LoadImage', backend_args=backend_args),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
-    dict(type='RandomHalfBody'),
+    # RandomHalfBody removed - not suitable for sidelying full-body poses
     dict(
         type='RandomBBoxTransform',
         shift_factor=0.,
-        scale_factor=[0.75, 1.25],
-        rotate_factor=60),
+        scale_factor=[0.9, 1.1],  # Very conservative for final refinement
+        rotate_factor=10),  # Minimal rotation in stage 2
     dict(type='TopdownAffine', input_size=codec['input_size']),
     dict(type='mmdet.YOLOXHSVRandomAug'),
     dict(
@@ -154,12 +187,12 @@ train_pipeline_stage2 = [
             dict(
                 type='CoarseDropout',
                 max_holes=1,
-                max_height=0.4,
-                max_width=0.4,
+                max_height=0.2,  # Further reduced for stage 2
+                max_width=0.2,
                 min_holes=1,
-                min_height=0.2,
-                min_width=0.2,
-                p=0.5),
+                min_height=0.1,
+                min_width=0.1,
+                p=0.3),  # Lower probability in refinement stage
         ]),
     dict(type='GenerateTarget', encoder=codec),
     dict(type='PackPoseInputs')
@@ -179,6 +212,9 @@ train_dataloader = dict(
         data_prefix=dict(img='train2017/'),
         pipeline=train_pipeline,
     ))
+
+# Validation: heel slides only (primary domain)
+# General exercise validation is done via general_val_hook
 val_dataloader = dict(
     batch_size=16,
     num_workers=4,
@@ -194,33 +230,56 @@ val_dataloader = dict(
         test_mode=True,
         pipeline=val_pipeline,
     ))
+
 test_dataloader = val_dataloader
 
-# hooks - optimized for fine-tuning
+# hooks - optimized for extended training
 default_hooks = dict(
     checkpoint=dict(
         type='CheckpointHook',
-        interval=5,
-        save_best='coco/AP',
+        interval=5,  # Save every 5 epochs (at 5, 10, 15, ..., 50)
+        save_best='coco/AP',  # Save best based on heel slides validation
         rule='greater',
-        max_keep_ckpts=3))
+        max_keep_ckpts=5))
 
 custom_hooks = [
     dict(
         type='EMAHook',
         ema_type='ExpMomentumEMA',
-        momentum=0.0001,  # Lower momentum for fine-tuning
+        momentum=0.0002,  # Slightly higher momentum for longer training
         update_buffers=True,
         priority=49),
     dict(
         type='mmdet.PipelineSwitchHook',
         switch_epoch=max_epochs - stage2_num_epochs,
-        switch_pipeline=train_pipeline_stage2)
+        switch_pipeline=train_pipeline_stage2),
+    # General validation hook - monitors forgetting on diverse exercises
+    dict(
+        type='GeneralValHook',
+        interval=1,
+        dataloader=dict(
+            batch_size=16,
+            num_workers=4,
+            dataset=dict(
+                type=dataset_type,
+                data_root=general_val_data_root,
+                data_mode=data_mode,
+                ann_file='annotations/person_keypoints_val2017.json',
+                data_prefix=dict(img='val2017/'),
+                test_mode=True,
+                pipeline=val_pipeline,
+            ),
+        ),
+        evaluator=dict(
+            type='CocoMetric',
+            ann_file=general_val_data_root + 'annotations/person_keypoints_val2017.json',
+        ),
+    ),
 ]
 
-# evaluators
+# Evaluator for heel slides validation
 val_evaluator = dict(
     type='CocoMetric',
     ann_file=data_root + 'annotations/person_keypoints_val2017.json')
-test_evaluator = val_evaluator
 
+test_evaluator = val_evaluator

@@ -2,6 +2,7 @@
 import argparse
 import os
 import os.path as osp
+from datetime import datetime
 
 import mmengine
 from mmengine.config import Config, DictAction
@@ -59,6 +60,32 @@ def parse_args():
         '--badcase',
         action='store_true',
         help='whether analyze badcase in test')
+    # MLflow arguments
+    parser.add_argument(
+        '--mlflow-tracking-uri',
+        type=str,
+        default=None,
+        help='MLflow tracking server URI. If provided, enables MLflow logging.')
+    parser.add_argument(
+        '--mlflow-experiment-name',
+        type=str,
+        default=None,
+        help='MLflow experiment name (defaults to config filename)')
+    parser.add_argument(
+        '--mlflow-run-name',
+        type=str,
+        default=None,
+        help='MLflow run name (defaults to "pretrain_eval")')
+    # Multi-dataset evaluation
+    parser.add_argument(
+        '--eval-general',
+        action='store_true',
+        help='Also evaluate on general validation dataset (requires GeneralValHook config)')
+    parser.add_argument(
+        '--general-data-root',
+        type=str,
+        default=None,
+        help='Override general validation data root')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -138,6 +165,65 @@ def merge_args(cfg, args):
     return cfg
 
 
+def evaluate_on_dataset(cfg, checkpoint, data_root, ann_file, img_prefix, 
+                        metric_prefix='coco', work_dir=None):
+    """Evaluate model on a specific dataset.
+    
+    Args:
+        cfg: Base config
+        checkpoint: Path to checkpoint file
+        data_root: Root directory of dataset
+        ann_file: Annotation file path (relative to data_root)
+        img_prefix: Image directory prefix (relative to data_root)
+        metric_prefix: Prefix for metric names (e.g., 'coco' or 'general_val')
+        work_dir: Working directory
+    
+    Returns:
+        dict: Evaluation metrics with prefixed names
+    """
+    import copy
+    eval_cfg = copy.deepcopy(cfg)
+    
+    # Update test dataloader
+    eval_cfg.test_dataloader.dataset.data_root = data_root
+    eval_cfg.test_dataloader.dataset.ann_file = ann_file
+    eval_cfg.test_dataloader.dataset.data_prefix = dict(img=img_prefix)
+    
+    # Update test evaluator
+    if isinstance(eval_cfg.test_evaluator, dict):
+        eval_cfg.test_evaluator['ann_file'] = osp.join(data_root, ann_file)
+    elif isinstance(eval_cfg.test_evaluator, list):
+        for evaluator in eval_cfg.test_evaluator:
+            if evaluator.get('type') == 'CocoMetric':
+                evaluator['ann_file'] = osp.join(data_root, ann_file)
+    
+    # Set work dir
+    if work_dir:
+        eval_cfg.work_dir = work_dir
+    
+    # Remove custom hooks that might interfere (like GeneralValHook)
+    eval_cfg.custom_hooks = [
+        hook for hook in eval_cfg.get('custom_hooks', [])
+        if hook.get('type') not in ['GeneralValHook']
+    ]
+    
+    # Build runner and test
+    runner = Runner.from_cfg(eval_cfg)
+    metrics = runner.test()
+    
+    # Prefix metrics
+    prefixed_metrics = {}
+    for key, value in metrics.items():
+        # Replace 'coco/' prefix with the desired prefix
+        if key.startswith('coco/'):
+            new_key = f"{metric_prefix}/{key[5:]}"  # Remove 'coco/' and add new prefix
+        else:
+            new_key = f"{metric_prefix}/{key}"
+        prefixed_metrics[new_key] = value
+    
+    return prefixed_metrics
+
+
 def main():
     args = parse_args()
 
@@ -145,21 +231,134 @@ def main():
     cfg = Config.fromfile(args.config)
     cfg = merge_args(cfg, args)
 
-    # build the runner from config
+    # Determine MLflow settings
+    mlflow_client = None
+    run_id = None
+    if args.mlflow_tracking_uri:
+        try:
+            import mlflow
+            mlflow.set_tracking_uri(args.mlflow_tracking_uri)
+            
+            # Set experiment name
+            if args.mlflow_experiment_name is None:
+                exp_name = osp.splitext(osp.basename(args.config))[0]
+            else:
+                exp_name = args.mlflow_experiment_name
+            
+            mlflow.set_experiment(exp_name)
+            
+            # Set run name
+            if args.mlflow_run_name is None:
+                run_name = "pretrain_eval_" + datetime.now().strftime("%Y%m%d_%H%M%S")
+            else:
+                run_name = args.mlflow_run_name
+            
+            # Start MLflow run
+            mlflow.start_run(run_name=run_name)
+            run_id = mlflow.active_run().info.run_id
+            
+            print(f"MLflow logging enabled:")
+            print(f"  Tracking URI: {args.mlflow_tracking_uri}")
+            print(f"  Experiment: {exp_name}")
+            print(f"  Run name: {run_name}")
+            print(f"  Run ID: {run_id}")
+            
+            # Log checkpoint path
+            mlflow.log_param("checkpoint", args.checkpoint)
+            mlflow.log_param("config", args.config)
+            
+            mlflow_client = mlflow
+        except ImportError:
+            print("Warning: mlflow not installed, skipping MLflow logging")
+        except Exception as e:
+            print(f"Warning: Failed to initialize MLflow: {e}")
+
+    all_metrics = {}
+    
+    # ==================== Primary Evaluation (heel slides / main test) ====================
+    print("\n" + "="*60)
+    print("Evaluating on primary test dataset (heel slides)...")
+    print("="*60)
+    
+    # Build runner and run test
     runner = Runner.from_cfg(cfg)
-
+    
     if args.out:
-
         class SaveMetricHook(Hook):
-
             def after_test_epoch(self, _, metrics=None):
                 if metrics is not None:
                     mmengine.dump(metrics, args.out)
-
         runner.register_hook(SaveMetricHook(), 'LOWEST')
-
-    # start testing
-    runner.test()
+    
+    primary_metrics = runner.test()
+    
+    # Prefix with 'coco/' for consistency with training logs
+    for key, value in primary_metrics.items():
+        if not key.startswith('coco/'):
+            all_metrics[f'coco/{key}'] = value
+        else:
+            all_metrics[key] = value
+    
+    print(f"\nPrimary (heel slides) metrics: {primary_metrics}")
+    
+    # ==================== General Validation Evaluation ====================
+    if args.eval_general:
+        print("\n" + "="*60)
+        print("Evaluating on general validation dataset...")
+        print("="*60)
+        
+        # Find general_val_data_root from config or CLI
+        general_data_root = args.general_data_root
+        if general_data_root is None:
+            general_data_root = cfg.get('general_val_data_root', None)
+        
+        if general_data_root is None:
+            print("Warning: --eval-general specified but no general_val_data_root found.")
+            print("Use --general-data-root to specify the path.")
+        else:
+            general_metrics = evaluate_on_dataset(
+                cfg=cfg,
+                checkpoint=args.checkpoint,
+                data_root=general_data_root,
+                ann_file='annotations/person_keypoints_val2017.json',
+                img_prefix='val2017/',
+                metric_prefix='general_val',
+                work_dir=cfg.work_dir,
+            )
+            all_metrics.update(general_metrics)
+            print(f"\nGeneral validation metrics: {general_metrics}")
+    
+    # ==================== Log to MLflow ====================
+    if mlflow_client:
+        try:
+            # Log all metrics at step 0 (pretrain baseline)
+            for key, value in all_metrics.items():
+                if isinstance(value, (int, float)):
+                    mlflow_client.log_metric(key, value, step=0)
+            
+            print(f"\nLogged metrics to MLflow at step 0:")
+            for key, value in all_metrics.items():
+                if isinstance(value, (int, float)):
+                    print(f"  {key}: {value:.4f}")
+            
+            mlflow_client.end_run()
+            print(f"\nMLflow run completed: {run_id}")
+        except Exception as e:
+            print(f"Warning: Failed to log to MLflow: {e}")
+            try:
+                mlflow_client.end_run()
+            except:
+                pass
+    
+    # ==================== Summary ====================
+    print("\n" + "="*60)
+    print("EVALUATION SUMMARY")
+    print("="*60)
+    for key, value in sorted(all_metrics.items()):
+        if isinstance(value, (int, float)):
+            print(f"  {key}: {value:.4f}")
+    
+    return all_metrics
 
 
 if __name__ == '__main__':

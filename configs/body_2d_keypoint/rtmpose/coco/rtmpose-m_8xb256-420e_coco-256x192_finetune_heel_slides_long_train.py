@@ -1,34 +1,28 @@
 _base_ = ['../../../_base_/default_runtime.py']
 
 # =============================================================================
-# Heel Slides Exercise Fine-tuning Configuration
+# Heel Slides Exercise Fine-tuning Configuration (50 Epochs)
 # =============================================================================
-# Optimized for sidelying persons performing heel slide exercises.
-# Key adjustments:
-#   - Removed RandomHalfBody (inappropriate for full-body sidelying poses)
-#   - Reduced rotation augmentation (sidelying poses have consistent orientation)
-#   - Conservative scale augmentation (maintain exercise context)
-#   - Reduced CoarseDropout (preserve leg/heel visibility for this exercise)
-#   - Differential learning rates: backbone uses 0.1x LR (partial freezing effect)
-#     This prevents catastrophic forgetting of pretrained features while still
-#     allowing the backbone to slowly adapt to sidelying poses.
-#   - norm_eval=True: Keeps BatchNorm in eval mode during training to prevent
-#     running statistics from shifting to the fine-tuning domain. This is critical
-#     when using low backbone LR or freezing backbone (lr_mult=0) to avoid
-#     degrading performance on general data.
+# Extended training version for more thorough fine-tuning.
+# Key adjustments from 15-epoch version:
+#   - 50 epochs for deeper adaptation to heel slides domain
+#   - Extended stage2 (last 15 epochs) for refinement
+#   - Adjusted LR schedule: warmup over 2 epochs, cosine from epoch 5
+#   - Lower final LR (eta_min) for finer convergence
+#   - Checkpoint every 5 epochs
 #
-# Training observations (round 1 with lr_mult=0.1, norm_eval=True):
-#   - Heel slides AP peaks at epoch 3, plateaus after ~10 epochs
-#   - General val AP decreases continuously with more epochs (forgetting)
-#   - Optimal training: short, ~15 epochs to capture gains before overfitting
+# Trade-offs:
+#   - More epochs = better heel slides performance
+#   - But also more forgetting on general poses
+#   - Monitor general_val AP to detect overfitting to domain
 # =============================================================================
 
 # Load pretrained checkpoint for fine-tuning
 load_from = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth'
 
-# runtime - optimized for fine-tuning (SHORT training to prevent forgetting)
-max_epochs = 15  # Reduced from 50: heel slides AP peaks early, more epochs = more forgetting
-stage2_num_epochs = 5  # Last 5 epochs use refined augmentation
+# runtime - extended training
+max_epochs = 50
+stage2_num_epochs = 15  # Last 15 epochs use refined augmentation
 base_lr = 1e-4  # Conservative learning rate for fine-tuning
 
 train_cfg = dict(max_epochs=max_epochs, val_interval=1)
@@ -48,21 +42,21 @@ optim_wrapper = dict(
             'backbone': dict(lr_mult=0.1),
         }))
 
-# learning rate schedule - adjusted for short 15-epoch training
-# With 8000 samples, batch_size=32: ~250 iters/epoch, 3750 total iters
+# learning rate schedule - adjusted for 50-epoch training
+# With 8000 samples, batch_size=32: ~250 iters/epoch
 param_scheduler = [
     dict(
         type='LinearLR',
         start_factor=1.0e-2,  # Start at 1e-6, warmup to 1e-4
         by_epoch=False,
         begin=0,
-        end=250),  # ~1 epoch warmup (reduced from 500)
+        end=500),  # ~2 epochs warmup
     dict(
         type='CosineAnnealingLR',
-        eta_min=base_lr * 0.1,  # End at 1e-5
-        begin=3,  # Start cosine annealing at epoch 3 (after peak)
+        eta_min=base_lr * 0.01,  # End at 1e-6 (lower for extended training)
+        begin=5,  # Start cosine annealing at epoch 5
         end=max_epochs,
-        T_max=max_epochs - 3,
+        T_max=max_epochs - 5,
         by_epoch=True,
         convert_to_iter_based=True),
 ]
@@ -239,25 +233,25 @@ val_dataloader = dict(
 
 test_dataloader = val_dataloader
 
-# hooks - optimized for fine-tuning
+# hooks - optimized for extended training
 default_hooks = dict(
     checkpoint=dict(
         type='CheckpointHook',
-        interval=3,  # Save every 3 epochs (at 3, 6, 9, 12, 15)
+        interval=5,  # Save every 5 epochs (at 5, 10, 15, ..., 50)
         save_best='coco/AP',  # Save best based on heel slides validation
         rule='greater',
-        max_keep_ckpts=5))  # Keep more checkpoints for short training
+        max_keep_ckpts=5))
 
 custom_hooks = [
     dict(
         type='EMAHook',
         ema_type='ExpMomentumEMA',
-        momentum=0.0001,  # Lower momentum for fine-tuning
+        momentum=0.0002,  # Slightly higher momentum for longer training
         update_buffers=True,
         priority=49),
     dict(
         type='mmdet.PipelineSwitchHook',
-        switch_epoch=max_epochs - stage2_num_epochs,
+        switch_epoch=max_epochs - stage2_num_epochs,  # Switch at epoch 35
         switch_pipeline=train_pipeline_stage2),
     # General validation hook - monitors forgetting on diverse exercises
     dict(

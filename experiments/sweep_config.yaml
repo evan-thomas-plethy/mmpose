@@ -5,57 +5,60 @@
 # =============================================================================
 
 # Base configuration file
-base_config: "configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_heel_slides.py"
+base_config: "configs/body_2d_keypoint/rtmpose/coco/rtmpose-s_8xb256-420e_coco-256x192_finetune_heel_slides.py"
 
 # MLflow settings
 mlflow:
   tracking_uri: "http://35.165.139.156:5000"
-  experiment_name: "rtmpose-m_heel_slides"
+  experiment_name: "rtmpose-s_heel_slides_rotation"
 
-# Sweep parameters
-# Each experiment will use the base_config with these overrides
-experiments:
-  # - name: "backbone_lr_mult_1.0"
-  #   overrides:
-  #     optim_wrapper.paramwise_cfg.custom_keys.backbone.lr_mult: 1.0
+# Note: General validation is handled by GeneralValHook in the training config
 
-  # - name: "backbone_lr_mult_0.0"
-  #   overrides:
-  #     optim_wrapper.paramwise_cfg.custom_keys.backbone.lr_mult: 0.0
-
-  # - name: "backbone_lr_mult_0.05"
-  #   overrides:
-  #     optim_wrapper.paramwise_cfg.custom_keys.backbone.lr_mult: 0.05
-
-  # - name: "backbone_lr_mult_0.1"
-  #   overrides:
-  #     optim_wrapper.paramwise_cfg.custom_keys.backbone.lr_mult: 0.1
-
-  - name: "backbone_lr_mult_0.2"
-    overrides:
-      optim_wrapper.paramwise_cfg.custom_keys.backbone.lr_mult: 0.2
-
-
-# Optional: Add more sweeps later
-# Example for rotation sweep (uncomment to use):
 # experiments:
-#   - name: "rotate_20"
+#   - name: "backbone_lr_mult_1.0_BN_frozen_False"
 #     overrides:
-#       train_pipeline.3.rotate_factor: 20
-#       train_pipeline_stage2.3.rotate_factor: 10
-#
-#   - name: "rotate_10"
+#       optim_wrapper.paramwise_cfg.custom_keys.backbone.lr_mult: 1.0
+#       model.backbone.norm_eval: false
+
+#   - name: "backbone_lr_mult_0.0_BN_frozen_False"
 #     overrides:
-#       train_pipeline.3.rotate_factor: 10
-#       train_pipeline_stage2.3.rotate_factor: 5
-#
-#   - name: "rotate_5"
+#       optim_wrapper.paramwise_cfg.custom_keys.backbone.lr_mult: 0.0
+#       model.backbone.norm_eval: false
+
+#   - name: "backbone_lr_mult_1.0_BN_frozen_True"
 #     overrides:
-#       train_pipeline.3.rotate_factor: 5
-#       train_pipeline_stage2.3.rotate_factor: 2
-#
-#   - name: "rotate_0"
+#       optim_wrapper.paramwise_cfg.custom_keys.backbone.lr_mult: 1.0
+
+#   - name: "backbone_lr_mult_0.0_BN_frozen_True"
 #     overrides:
-#       train_pipeline.3.rotate_factor: 0
-#       train_pipeline_stage2.3.rotate_factor: 0
+#       optim_wrapper.paramwise_cfg.custom_keys.backbone.lr_mult: 0.0
+
+#   - name: "backbone_lr_mult_0.05_BN_frozen_True"
+#     overrides:
+#       optim_wrapper.paramwise_cfg.custom_keys.backbone.lr_mult: 0.05
+
+#   - name: "backbone_lr_mult_0.1_BN_frozen_True"
+#     overrides:
+#       optim_wrapper.paramwise_cfg.custom_keys.backbone.lr_mult: 0.1
+
+#   - name: "backbone_lr_mult_0.1_BN_frozen_False"
+#     overrides:
+#       optim_wrapper.paramwise_cfg.custom_keys.backbone.lr_mult: 0.1
+#       model.backbone.norm_eval: false
+
+#   - name: "backbone_lr_mult_0.2_BN_frozen_True"
+#     overrides:
+#       optim_wrapper.paramwise_cfg.custom_keys.backbone.lr_mult: 0.2
+
+
+experiments:
+  - name: "rotate_30"
+    overrides:
+      train_pipeline.3.rotate_factor: 30
+      train_pipeline_stage2.3.rotate_factor: 15
+
+  - name: "rotate_10"
+    overrides:
+      train_pipeline.3.rotate_factor: 10
+      train_pipeline_stage2.3.rotate_factor: 5
 

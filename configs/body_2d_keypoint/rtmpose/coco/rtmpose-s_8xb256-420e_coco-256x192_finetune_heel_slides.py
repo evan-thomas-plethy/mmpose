@@ -1,7 +1,7 @@
 _base_ = ['../../../_base_/default_runtime.py']
 
 # =============================================================================
-# Heel Slides Exercise Fine-tuning Configuration
+# Heel Slides Exercise Fine-tuning Configuration (RTMPose-S)
 # =============================================================================
 # Optimized for sidelying persons performing heel slide exercises.
 # Key adjustments:
@@ -24,7 +24,7 @@ _base_ = ['../../../_base_/default_runtime.py']
 # =============================================================================
 
 # Load pretrained checkpoint for fine-tuning
-load_from = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth'
+load_from = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-s_simcc-aic-coco_pt-aic-coco_420e-256x192-fcb2599b_20230126.pth'
 
 # runtime - optimized for fine-tuning (SHORT training to prevent forgetting)
 max_epochs = 15  # Reduced from 50: heel slides AP peaks early, more epochs = more forgetting
@@ -92,8 +92,8 @@ model = dict(
         type='CSPNeXt',
         arch='P5',
         expand_ratio=0.5,
-        deepen_factor=0.67,
-        widen_factor=0.75,
+        deepen_factor=0.33,  # RTMPose-S specific
+        widen_factor=0.5,    # RTMPose-S specific
         out_indices=(4, ),
         channel_attention=True,
         norm_cfg=dict(type='SyncBN'),
@@ -104,7 +104,7 @@ model = dict(
         norm_eval=True),
     head=dict(
         type='RTMCCHead',
-        in_channels=768,
+        in_channels=512,  # RTMPose-S specific
         out_channels=17,
         input_size=codec['input_size'],
         in_featuremap_size=tuple([s // 32 for s in codec['input_size']]),
