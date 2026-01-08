@@ -20,7 +20,6 @@ experiments:
       val_dataloader.dataset.data_root: "data/coco_dedup_param_0.995_augmented/v1.1/"
       val_evaluator.ann_file: "data/coco_dedup_param_0.995_augmented/v1.1/annotations/person_keypoints_val2017.json"
       custom_hooks.2.dataloader.dataset.data_root: "data/coco_dedup_param_0.995_augmented/v1.1/"
-      custom_hooks.2.dataloader.dataset.ann_file: "annotations/person_keypoints_val2017_mirrored.json"
       custom_hooks.2.evaluator.ann_file: "data/coco_dedup_param_0.995_augmented/v1.1/annotations/person_keypoints_val2017_mirrored.json"
 
   - name: "v1.2"
@@ -29,7 +28,6 @@ experiments:
       val_dataloader.dataset.data_root: "data/coco_dedup_param_0.995_augmented/v1.2/"
       val_evaluator.ann_file: "data/coco_dedup_param_0.995_augmented/v1.2/annotations/person_keypoints_val2017.json"
       custom_hooks.2.dataloader.dataset.data_root: "data/coco_dedup_param_0.995_augmented/v1.2/"
-      custom_hooks.2.dataloader.dataset.ann_file: "annotations/person_keypoints_val2017_mirrored.json"
       custom_hooks.2.evaluator.ann_file: "data/coco_dedup_param_0.995_augmented/v1.2/annotations/person_keypoints_val2017_mirrored.json"
 
   - name: "v2.1"
@@ -38,7 +36,6 @@ experiments:
       val_dataloader.dataset.data_root: "data/coco_dedup_param_0.995_augmented/v2.1/"
       val_evaluator.ann_file: "data/coco_dedup_param_0.995_augmented/v2.1/annotations/person_keypoints_val2017.json"
       custom_hooks.2.dataloader.dataset.data_root: "data/coco_dedup_param_0.995_augmented/v2.1/"
-      custom_hooks.2.dataloader.dataset.ann_file: "annotations/person_keypoints_val2017_mirrored.json"
       custom_hooks.2.evaluator.ann_file: "data/coco_dedup_param_0.995_augmented/v2.1/annotations/person_keypoints_val2017_mirrored.json"
 
   - name: "v2.2"
@@ -47,7 +44,6 @@ experiments:
       val_dataloader.dataset.data_root: "data/coco_dedup_param_0.995_augmented/v2.2/"
       val_evaluator.ann_file: "data/coco_dedup_param_0.995_augmented/v2.2/annotations/person_keypoints_val2017.json"
       custom_hooks.2.dataloader.dataset.data_root: "data/coco_dedup_param_0.995_augmented/v2.2/"
-      custom_hooks.2.dataloader.dataset.ann_file: "annotations/person_keypoints_val2017_mirrored.json"
       custom_hooks.2.evaluator.ann_file: "data/coco_dedup_param_0.995_augmented/v2.2/annotations/person_keypoints_val2017_mirrored.json"
 
   - name: "v3.1"
@@ -56,7 +52,6 @@ experiments:
       val_dataloader.dataset.data_root: "data/coco_dedup_param_0.995_augmented/v3.1/"
       val_evaluator.ann_file: "data/coco_dedup_param_0.995_augmented/v3.1/annotations/person_keypoints_val2017.json"
       custom_hooks.2.dataloader.dataset.data_root: "data/coco_dedup_param_0.995_augmented/v3.1/"
-      custom_hooks.2.dataloader.dataset.ann_file: "annotations/person_keypoints_val2017_mirrored.json"
       custom_hooks.2.evaluator.ann_file: "data/coco_dedup_param_0.995_augmented/v3.1/annotations/person_keypoints_val2017_mirrored.json"
 
   - name: "v3.2"
@@ -65,7 +60,6 @@ experiments:
       val_dataloader.dataset.data_root: "data/coco_dedup_param_0.995_augmented/v3.2/"
       val_evaluator.ann_file: "data/coco_dedup_param_0.995_augmented/v3.2/annotations/person_keypoints_val2017.json"
       custom_hooks.2.dataloader.dataset.data_root: "data/coco_dedup_param_0.995_augmented/v3.2/"
-      custom_hooks.2.dataloader.dataset.ann_file: "annotations/person_keypoints_val2017_mirrored.json"
       custom_hooks.2.evaluator.ann_file: "data/coco_dedup_param_0.995_augmented/v3.2/annotations/person_keypoints_val2017_mirrored.json"
 
   - name: "v4.1"
@@ -74,7 +68,6 @@ experiments:
       val_dataloader.dataset.data_root: "data/coco_dedup_param_0.995_augmented/v4.1/"
       val_evaluator.ann_file: "data/coco_dedup_param_0.995_augmented/v4.1/annotations/person_keypoints_val2017.json"
       custom_hooks.2.dataloader.dataset.data_root: "data/coco_dedup_param_0.995_augmented/v4.1/"
-      custom_hooks.2.dataloader.dataset.ann_file: "annotations/person_keypoints_val2017_mirrored.json"
       custom_hooks.2.evaluator.ann_file: "data/coco_dedup_param_0.995_augmented/v4.1/annotations/person_keypoints_val2017_mirrored.json"
 
   - name: "v4.2"
@@ -83,7 +76,6 @@ experiments:
       val_dataloader.dataset.data_root: "data/coco_dedup_param_0.995_augmented/v4.2/"
       val_evaluator.ann_file: "data/coco_dedup_param_0.995_augmented/v4.2/annotations/person_keypoints_val2017.json"
       custom_hooks.2.dataloader.dataset.data_root: "data/coco_dedup_param_0.995_augmented/v4.2/"
-      custom_hooks.2.dataloader.dataset.ann_file: "annotations/person_keypoints_val2017_mirrored.json"
       custom_hooks.2.evaluator.ann_file: "data/coco_dedup_param_0.995_augmented/v4.2/annotations/person_keypoints_val2017_mirrored.json"
 
 # LR sweep
@@ -100,7 +92,6 @@ experiments:
   #     val_dataloader.dataset.data_root: "data/coco_dedup_param_0.995/"
   #     val_evaluator.ann_file: "data/coco_dedup_param_0.995/annotations/person_keypoints_val2017.json"
   #     custom_hooks.2.dataloader.dataset.data_root: "data/coco_dedup_param_0.995/"
-  #     custom_hooks.2.dataloader.dataset.ann_file: "annotations/person_keypoints_val2017_mirrored.json"
   #     custom_hooks.2.evaluator.ann_file: "data/coco_dedup_param_0.995/annotations/person_keypoints_val2017_mirrored.json"
 
   # - name: "lr_5e-5"
@@ -112,7 +103,6 @@ experiments:
   #     val_dataloader.dataset.data_root: "data/coco_dedup_param_0.995/"
   #     val_evaluator.ann_file: "data/coco_dedup_param_0.995/annotations/person_keypoints_val2017.json"
   #     custom_hooks.2.dataloader.dataset.data_root: "data/coco_dedup_param_0.995/"
-  #     custom_hooks.2.dataloader.dataset.ann_file: "annotations/person_keypoints_val2017_mirrored.json"
   #     custom_hooks.2.evaluator.ann_file: "data/coco_dedup_param_0.995/annotations/person_keypoints_val2017_mirrored.json"
 
   # - name: "lr_5e-4"
@@ -124,7 +114,6 @@ experiments:
   #     val_dataloader.dataset.data_root: "data/coco_dedup_param_0.995/"
   #     val_evaluator.ann_file: "data/coco_dedup_param_0.995/annotations/person_keypoints_val2017.json"
   #     custom_hooks.2.dataloader.dataset.data_root: "data/coco_dedup_param_0.995/"
-  #     custom_hooks.2.dataloader.dataset.ann_file: "annotations/person_keypoints_val2017_mirrored.json"
   #     custom_hooks.2.evaluator.ann_file: "data/coco_dedup_param_0.995/annotations/person_keypoints_val2017_mirrored.json"
 
   # - name: "lr_2e-4"
@@ -136,7 +125,6 @@ experiments:
   #     val_dataloader.dataset.data_root: "data/coco_dedup_param_0.995/"
   #     val_evaluator.ann_file: "data/coco_dedup_param_0.995/annotations/person_keypoints_val2017.json"
   #     custom_hooks.2.dataloader.dataset.data_root: "data/coco_dedup_param_0.995/"
-  #     custom_hooks.2.dataloader.dataset.ann_file: "annotations/person_keypoints_val2017_mirrored.json"
   #     custom_hooks.2.evaluator.ann_file: "data/coco_dedup_param_0.995/annotations/person_keypoints_val2017_mirrored.json"
 
 # Dataset deduplication parameter sweep
@@ -149,7 +137,6 @@ experiments:
   #     val_dataloader.dataset.data_root: "data/coco_dedup_param_1.0/"
   #     val_evaluator.ann_file: "data/coco_dedup_param_1.0/annotations/person_keypoints_val2017.json"
   #     custom_hooks.2.dataloader.dataset.data_root: "data/coco_dedup_param_1.0/"
-  #     custom_hooks.2.dataloader.dataset.ann_file: "annotations/person_keypoints_val2017_mirrored.json"
   #     custom_hooks.2.evaluator.ann_file: "data/coco_dedup_param_1.0/annotations/person_keypoints_val2017_mirrored.json"
 
   # - name: "dedup_0.995"
@@ -158,7 +145,6 @@ experiments:
   #     val_dataloader.dataset.data_root: "data/coco_dedup_param_0.995/"
   #     val_evaluator.ann_file: "data/coco_dedup_param_0.995/annotations/person_keypoints_val2017.json"
   #     custom_hooks.2.dataloader.dataset.data_root: "data/coco_dedup_param_0.995/"
-  #     custom_hooks.2.dataloader.dataset.ann_file: "annotations/person_keypoints_val2017_mirrored.json"
   #     custom_hooks.2.evaluator.ann_file: "data/coco_dedup_param_0.995/annotations/person_keypoints_val2017_mirrored.json"
 
   # - name: "dedup_0.99"
@@ -167,7 +153,6 @@ experiments:
   #     val_dataloader.dataset.data_root: "data/coco_dedup_param_0.99/"
   #     val_evaluator.ann_file: "data/coco_dedup_param_0.99/annotations/person_keypoints_val2017.json"
   #     custom_hooks.2.dataloader.dataset.data_root: "data/coco_dedup_param_0.99/"
-  #     custom_hooks.2.dataloader.dataset.ann_file: "annotations/person_keypoints_val2017_mirrored.json"
   #     custom_hooks.2.evaluator.ann_file: "data/coco_dedup_param_0.99/annotations/person_keypoints_val2017_mirrored.json"
 
   # - name: "RePoGen_3k_top_and_bottom"
@@ -178,7 +163,6 @@ experiments:
   #     val_dataloader.dataset.data_root: "data/coco_dedup_param_1.0/"
   #     val_evaluator.ann_file: "data/coco_dedup_param_1.0/annotations/person_keypoints_val2017.json"
   #     custom_hooks.2.dataloader.dataset.data_root: "data/coco_dedup_param_1.0/"
-  #     custom_hooks.2.dataloader.dataset.ann_file: "annotations/person_keypoints_val2017_mirrored.json"
   #     custom_hooks.2.evaluator.ann_file: "data/coco_dedup_param_1.0/annotations/person_keypoints_val2017_mirrored.json"
 
 # Backbone unfreeze epoch sweep

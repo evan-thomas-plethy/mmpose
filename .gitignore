@@ -108,7 +108,13 @@ venv.bak/
 # custom
 mmpose/.mim
 /models
-/data
+data/**
+!data/
+!data/*.py
+!data/*.yaml
+!data/augmentations/
+!data/augmentations/*.py
+!data/augmentations/*.yaml
 /visualization
 /onnx2tf
 .vscode

@@ -1,0 +1,59 @@
+independent_augs: false
+dependence_key: "1 geometric per color"
+
+augmentations:
+  brightness_contrast:
+    brightness_limit: [-0.3, 0.3]
+    contrast_limit: [-0.3, 0.3]
+    probability: 0.4
+    is_geometric: false
+
+  crop:
+    keep_aspect_ratio: true
+    ratio: [0.85, 0.95]
+    is_geometric: true
+
+  gamma:
+    gamma_limit: [50, 160]
+    probability: 0.33
+    is_geometric: false
+
+  gaussian_blur:
+    sigma_limit: [0.8, 2.4]
+    probability: 0.25
+    is_geometric: false
+
+  hue_saturation:
+    hue: [-0.08, 0.08]
+    saturation: [0.6, 1.4]
+    probability: 0.4
+    is_geometric: false
+
+  motion_blur:
+    blur_limit: [3, 7]
+    probability: 0.2
+    is_geometric: false
+
+  occlusion:
+    area_pct: [0.08, 0.15]
+    min_holes: 1
+    max_holes: 2
+    probability: 0.33
+    is_geometric: false
+
+  rotation:
+    limit: [-8, 8]
+    is_geometric: true
+
+  scale:
+    scale: [0.95, 1.15]
+    is_geometric: true
+
+  shadow:
+    shadow_dimension: 4
+    probability: 0.33
+    is_geometric: false
+
+  translation:
+    translate_percent: [-0.05, 0.05]
+    is_geometric: true
