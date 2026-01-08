@@ -62,6 +62,14 @@ def run_experiment(
         f"--mlflow-run-name", name,
     ]
     
+    # Generate run description from overrides
+    if overrides:
+        run_description = "; ".join(f"{k}: {v}" for k, v in overrides.items())
+        cmd_parts.extend([
+            "--mlflow-run-description",
+            f'"Varied parameters: {run_description}"'
+        ])
+    
     # Add cfg-options if there are overrides
     if overrides:
         cfg_options = build_cfg_options(overrides)

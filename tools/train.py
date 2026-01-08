@@ -1,5 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import argparse
+import json
 import os
 import os.path as osp
 from datetime import datetime
@@ -86,6 +87,11 @@ def parse_args():
         type=str,
         default=None,
         help='MLflow run name (defaults to timestamp)')
+    parser.add_argument(
+        '--mlflow-run-description',
+        type=str,
+        default=None,
+        help='MLflow run description (e.g., list of tweaked params)')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -182,6 +188,10 @@ def add_mlflow_backend(cfg, args):
         run_name=run_name,
     )
     
+    # Add run description as a tag if provided
+    if args.mlflow_run_description:
+        mlflow_backend['tags'] = {'mlflow.note.content': args.mlflow_run_description}
+    
     # Ensure vis_backends exists and add MLflow backend
     if not hasattr(cfg, 'vis_backends') or cfg.vis_backends is None:
         cfg.vis_backends = [dict(type='LocalVisBackend')]
@@ -224,8 +234,102 @@ def main():
         cfg.model.setdefault('data_preprocessor',
                              cfg.get('preprocess_cfg', {}))
 
+    # Helper to get full annotation path from dataloader config
+    def get_ann_path(dataloader_cfg):
+        data_root = dataloader_cfg.dataset.get('data_root', '')
+        ann_file = dataloader_cfg.dataset.ann_file
+        return osp.join(data_root, ann_file) if data_root else ann_file
+
+    # Helper to load info from annotation file
+    def load_ann_info(ann_path):
+        if osp.exists(ann_path):
+            with open(ann_path, 'r') as f:
+                ann_data = json.load(f)
+            return ann_data.get('info')
+        return None
+
+    # Add dataset info to config so it gets logged with other params
+    if args.mlflow_tracking_uri is not None:
+        try:
+            # Train dataset info
+            if hasattr(cfg, 'train_dataloader') and cfg.train_dataloader is not None:
+                train_ann_path = get_ann_path(cfg.train_dataloader)
+                train_info = load_ann_info(train_ann_path)
+                if train_info:
+                    cfg.dataset_train = train_info
+                    print(f"  Train dataset info added from: {train_ann_path}")
+
+            # Val dataset info
+            if hasattr(cfg, 'val_dataloader') and cfg.val_dataloader is not None:
+                val_ann_path = get_ann_path(cfg.val_dataloader)
+                val_info = load_ann_info(val_ann_path)
+                if val_info:
+                    cfg.dataset_val = val_info
+                    print(f"  Val dataset info added from: {val_ann_path}")
+
+            # General val dataset info from GeneralValHook
+            if hasattr(cfg, 'custom_hooks') and cfg.custom_hooks is not None:
+                for hook in cfg.custom_hooks:
+                    if hook.get('type') == 'GeneralValHook':
+                        general_val_ann = hook.get('evaluator', {}).get('ann_file')
+                        if general_val_ann:
+                            general_val_info = load_ann_info(general_val_ann)
+                            if general_val_info:
+                                cfg.dataset_general_val = general_val_info
+                                print(f"  General val dataset info added from: {general_val_ann}")
+                        break
+        except Exception as e:
+            print(f"Warning: Could not add dataset info to config: {e}")
+
     # build the runner from config
     runner = Runner.from_cfg(cfg)
+
+    # Log annotation JSON files as artifacts to MLflow
+    if args.mlflow_tracking_uri is not None:
+        try:
+            import mlflow
+            # Log train annotation file
+            if hasattr(cfg, 'train_dataloader') and cfg.train_dataloader is not None:
+                train_ann_path = get_ann_path(cfg.train_dataloader)
+                if osp.exists(train_ann_path):
+                    mlflow.log_artifact(train_ann_path)
+                    print(f"  Logged train annotations: {osp.basename(train_ann_path)}")
+                else:
+                    print(f"  Warning: Train annotations not found: {train_ann_path}")
+            # Log val annotation file
+            if hasattr(cfg, 'val_dataloader') and cfg.val_dataloader is not None:
+                val_ann_path = get_ann_path(cfg.val_dataloader)
+                if osp.exists(val_ann_path):
+                    mlflow.log_artifact(val_ann_path)
+                    print(f"  Logged val annotations: {osp.basename(val_ann_path)}")
+                else:
+                    print(f"  Warning: Val annotations not found: {val_ann_path}")
+            # Log mirrored_val annotation file from MirroredValHook if present
+            if hasattr(cfg, 'custom_hooks') and cfg.custom_hooks is not None:
+                for hook in cfg.custom_hooks:
+                    if hook.get('type') == 'MirroredValHook':
+                        mirrored_val_ann_file = hook.get('evaluator', {}).get('ann_file')
+                        if mirrored_val_ann_file:
+                            if osp.exists(mirrored_val_ann_file):
+                                mlflow.log_artifact(mirrored_val_ann_file)
+                                print(f"  Logged mirrored_val annotations: {osp.basename(mirrored_val_ann_file)}")
+                            else:
+                                print(f"  Warning: Mirrored val annotations not found: {mirrored_val_ann_file}")
+                        break
+            # Log general_val annotation file from GeneralValHook if present
+            if hasattr(cfg, 'custom_hooks') and cfg.custom_hooks is not None:
+                for hook in cfg.custom_hooks:
+                    if hook.get('type') == 'GeneralValHook':
+                        general_val_ann_file = hook.get('evaluator', {}).get('ann_file')
+                        if general_val_ann_file:
+                            if osp.exists(general_val_ann_file):
+                                mlflow.log_artifact(general_val_ann_file)
+                                print(f"  Logged general_val annotations: {osp.basename(general_val_ann_file)}")
+                            else:
+                                print(f"  Warning: General val annotations not found: {general_val_ann_file}")
+                        break
+        except Exception as e:
+            print(f"Warning: Could not log annotation files to MLflow: {e}")
 
     # start training
     runner.train()

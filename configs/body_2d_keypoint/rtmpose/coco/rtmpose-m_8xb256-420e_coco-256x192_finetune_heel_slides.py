@@ -4,24 +4,6 @@ _base_ = ['../../../_base_/default_runtime.py']
 # Heel Slides Exercise Fine-tuning Configuration
 # =============================================================================
 # Optimized for sidelying persons performing heel slide exercises.
-# Key adjustments:
-#   - Removed RandomHalfBody (inappropriate for full-body sidelying poses)
-#   - Reduced rotation augmentation (sidelying poses have consistent orientation)
-#   - Conservative scale augmentation (maintain exercise context)
-#   - Reduced CoarseDropout (preserve leg/heel visibility for this exercise)
-#   - Differential learning rates: backbone uses 0.1x LR (partial freezing effect)
-#     This prevents catastrophic forgetting of pretrained features while still
-#     allowing the backbone to slowly adapt to sidelying poses.
-#   - norm_eval=True: Keeps BatchNorm in eval mode during training to prevent
-#     running statistics from shifting to the fine-tuning domain. This is critical
-#     when using low backbone LR or freezing backbone (lr_mult=0) to avoid
-#     degrading performance on general data.
-#
-# Training observations (round 1 with lr_mult=0.1, norm_eval=True):
-#   - Heel slides AP peaks at epoch 3, plateaus after ~10 epochs
-#   - General val AP decreases continuously with more epochs (forgetting)
-#   - Optimal training: short, ~15 epochs to capture gains before overfitting
-# =============================================================================
 
 # Load pretrained checkpoint for fine-tuning
 load_from = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth'
@@ -42,10 +24,13 @@ optim_wrapper = dict(
         norm_decay_mult=0,
         bias_decay_mult=0,
         bypass_duplicate=True,
-        # Backbone uses lower LR than head - partial freezing effect
-        # Preserves pretrained features while allowing slow adaptation
         custom_keys={
-            'backbone': dict(lr_mult=0.1),
+            # 'backbone': dict(lr_mult=0.0),
+            'backbone.stem': dict(lr_mult=0.0),
+            'backbone.stage1': dict(lr_mult=0.0),
+            'backbone.stage2': dict(lr_mult=0.0),
+            'backbone.stage3': dict(lr_mult=0.0),
+            'backbone.stage4': dict(lr_mult=0.0),
         }))
 
 # learning rate schedule - adjusted for short 15-epoch training
@@ -98,6 +83,7 @@ model = dict(
         channel_attention=True,
         norm_cfg=dict(type='SyncBN'),
         act_cfg=dict(type='SiLU'),
+        frozen_stages=-1, # 0 freezes stem, 1 freezes stage1 + stem, ...
         # Keep BatchNorm in eval mode during training to prevent running
         # statistics from shifting to heel slides domain. Critical when using
         # low backbone LR (lr_mult=0.1) or fully frozen backbone (lr_mult=0).
@@ -125,7 +111,7 @@ model = dict(
             beta=10.,
             label_softmax=True),
         decoder=codec),
-    test_cfg=dict(flip_test=True))
+    test_cfg=dict(flip_test=False))
 
 # base dataset settings
 dataset_type = 'CocoDataset'
@@ -255,10 +241,41 @@ custom_hooks = [
         momentum=0.0001,  # Lower momentum for fine-tuning
         update_buffers=True,
         priority=49),
+    # # THIS CODE DOES NOT WORK - do not uncomment
+    # # Backbone unfreezing hook - switches backbone lr_mult from 0.0 to 0.1
+    # # This allows the head to adapt first, then backbone fine-tuning begins
+    # dict(
+    #     type='ParamSwitchHook',
+    #     switch_epoch=0,
+    #     new_paramwise_cfg=dict(
+    #         custom_keys={'backbone': dict(lr_mult=0.1)}
+    #     )),
     dict(
         type='mmdet.PipelineSwitchHook',
         switch_epoch=max_epochs - stage2_num_epochs,
         switch_pipeline=train_pipeline_stage2),
+    # Mirrored validation hook - assesses bias for left/right pose orientation
+    dict(
+        type='MirroredValHook',
+        interval=1,
+        dataloader=dict(
+            batch_size=16,
+            num_workers=4,
+            dataset=dict(
+                type=dataset_type,
+                data_root=data_root,
+                data_mode=data_mode,
+                ann_file='annotations/person_keypoints_val2017_mirrored.json',
+                data_prefix=dict(img='val2017_mirrored/'),
+                test_mode=True,
+                pipeline=val_pipeline,
+            ),
+        ),
+        evaluator=dict(
+            type='CocoMetric',
+            ann_file=data_root + 'annotations/person_keypoints_val2017_mirrored.json',
+        ),
+    ),
     # General validation hook - monitors forgetting on diverse exercises
     dict(
         type='GeneralValHook',
@@ -270,15 +287,15 @@ custom_hooks = [
                 type=dataset_type,
                 data_root=general_val_data_root,
                 data_mode=data_mode,
-                ann_file='annotations/person_keypoints_val2017.json',
-                data_prefix=dict(img='val2017/'),
+                ann_file='annotations/annotations.json',
+                data_prefix=dict(img='val/'),
                 test_mode=True,
                 pipeline=val_pipeline,
             ),
         ),
         evaluator=dict(
             type='CocoMetric',
-            ann_file=general_val_data_root + 'annotations/person_keypoints_val2017.json',
+            ann_file=general_val_data_root + 'annotations/annotations.json',
         ),
     ),
 ]

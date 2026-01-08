@@ -1,5 +1,6 @@
-IMPORTANT: use cuda-12.1
+IMPORTANT: use cuda-12.1 (expect to be default)
 AND for every session:
+conda activate mmpose
 export PYTHONPATH=/home/ubuntu/visionAI/mmpose:$PYTHONPATH
     To resolve this issue: Traceback (most recent call last): 596, in call_endpointameter 'metrics[3].name' supplied: Names may only contain alphanumerics, underscores (_), dashes (-), periods (.), spaces ( ), colon(:) and slashes (/).
 ##################################################################################
@@ -7,8 +8,8 @@ export PYTHONPATH=/home/ubuntu/visionAI/mmpose:$PYTHONPATH
 Train: 
 Single experiment:
 python tools/train.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_heel_slides_long_train.py \
-    --mlflow-experiment-name "rtmpose-m_heel_slides_augmented_dataset" \
-    --mlflow-run-name "dataset_2x"
+    --mlflow-experiment-name "rtmpose-m_heel_slides_dataset_deduplication" \
+    --mlflow-run-name "dedup_param_1.0"
 
 Sweep:
 python experiments/run_sweep.py experiments/sweep_config.yaml
@@ -19,10 +20,11 @@ python experiments/run_sweep.py experiments/sweep_config.yaml
 
 Test: 
 # Basic test of pretrained model on primary dataset
-python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-s_8xb256-420e_coco-256x192.py \
-    mmpose/models/_models/pose/rtmpose-s_simcc-aic-coco_pt-aic-coco_420e-256x192-fcb2599b_20230126.pth \
-    --dump s_pretrain_val.pkl \
-    --work-dir work_dirs/s_pretrain_val
+python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192.py \
+    mmpose/models/_models/pose/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth \
+    --dump pretrain_mirrored_val.pkl \
+    --work-dir work_dirs/pretrain_mirrored_val \
+    --print-model
 
 # Evaluate pretrained model on BOTH datasets and log to MLflow (for baseline comparison)
 python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-s_8xb256-420e_coco-256x192_finetune_heel_slides.py \
@@ -50,9 +52,9 @@ python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e
 python tools/copy_mlflow_run_metrics.py
 
 Vis:
-python tools/visualize_results.py --results backbone_lr_mult_0.1_BN_frozen_True.pkl --images-dir data/coco/val2017 --output backbone_lr_mult_0.1_BN_frozen_True.mp4
-OR if path is being doubled
-python tools/visualize_results.py --results backbone_lr_mult_0.1_BN_frozen_True.pkl --images-dir . --output backbone_lr_mult_0.1_BN_frozen_True.mp4
+python tools/visualize_results.py --results pretrain_mirrored_val.pkl --images-dir data/coco_dedup_param_0.99/val2017_mirrored --output pretain_mirrored_val.mp4
+OR if file not found due to path being doubled
+python tools/visualize_results.py --results pretrain_mirrored_val.pkl --images-dir . --output pretrain_mirrored_val.mp4
 
 Export Results:
 python tools/convert_pkl_to_json.py --results pretrain_det_standing_general_val.pkl --output pretrain_det_standing_general_val.json

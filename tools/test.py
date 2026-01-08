@@ -86,6 +86,10 @@ def parse_args():
         type=str,
         default=None,
         help='Override general validation data root')
+    parser.add_argument(
+        '--print-model',
+        action='store_true',
+        help='Print model architecture/layers and exit')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -282,6 +286,32 @@ def main():
     
     # Build runner and run test
     runner = Runner.from_cfg(cfg)
+    
+    # Print model layers if requested
+    if args.print_model:
+        print("\n" + "="*60)
+        print("MODEL ARCHITECTURE")
+        print("="*60)
+        print(runner.model)
+        print("\n" + "="*60)
+        print("NAMED MODULES (layer by layer)")
+        print("="*60)
+        for name, module in runner.model.named_modules():
+            if name:  # Skip root module (empty name)
+                print(f"{name}: {module.__class__.__name__}")
+        print("\n" + "="*60)
+        print("PARAMETERS SUMMARY")
+        print("="*60)
+        total_params = 0
+        trainable_params = 0
+        for name, param in runner.model.named_parameters():
+            total_params += param.numel()
+            if param.requires_grad:
+                trainable_params += param.numel()
+            print(f"{name}: {list(param.shape)}, requires_grad={param.requires_grad}")
+        print(f"\nTotal parameters: {total_params:,}")
+        print(f"Trainable parameters: {trainable_params:,}")
+        return {}
     
     if args.out:
         class SaveMetricHook(Hook):

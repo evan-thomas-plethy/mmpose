@@ -4,18 +4,6 @@ _base_ = ['../../../_base_/default_runtime.py']
 # Heel Slides Exercise Fine-tuning Configuration (50 Epochs)
 # =============================================================================
 # Extended training version for more thorough fine-tuning.
-# Key adjustments from 15-epoch version:
-#   - 50 epochs for deeper adaptation to heel slides domain
-#   - Extended stage2 (last 15 epochs) for refinement
-#   - Adjusted LR schedule: warmup over 2 epochs, cosine from epoch 5
-#   - Lower final LR (eta_min) for finer convergence
-#   - Checkpoint every 5 epochs
-#
-# Trade-offs:
-#   - More epochs = better heel slides performance
-#   - But also more forgetting on general poses
-#   - Monitor general_val AP to detect overfitting to domain
-# =============================================================================
 
 # Load pretrained checkpoint for fine-tuning
 load_from = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth'
@@ -36,10 +24,13 @@ optim_wrapper = dict(
         norm_decay_mult=0,
         bias_decay_mult=0,
         bypass_duplicate=True,
-        # Backbone uses lower LR than head - partial freezing effect
-        # Preserves pretrained features while allowing slow adaptation
         custom_keys={
-            'backbone': dict(lr_mult=0.1),
+            # 'backbone': dict(lr_mult=0.0),
+            'backbone.stem': dict(lr_mult=0.0),
+            'backbone.stage1': dict(lr_mult=0.0),
+            'backbone.stage2': dict(lr_mult=0.0),
+            'backbone.stage3': dict(lr_mult=0.0),
+            'backbone.stage4': dict(lr_mult=0.0),
         }))
 
 # learning rate schedule - adjusted for 50-epoch training
@@ -92,6 +83,7 @@ model = dict(
         channel_attention=True,
         norm_cfg=dict(type='SyncBN'),
         act_cfg=dict(type='SiLU'),
+        frozen_stages=-1, # 0 freezes stem, 1 freezes stage1 + stem, ...
         # Keep BatchNorm in eval mode during training to prevent running
         # statistics from shifting to heel slides domain. Critical when using
         # low backbone LR (lr_mult=0.1) or fully frozen backbone (lr_mult=0).
@@ -119,7 +111,7 @@ model = dict(
             beta=10.,
             label_softmax=True),
         decoder=codec),
-    test_cfg=dict(flip_test=True))
+    test_cfg=dict(flip_test=False))
 
 # base dataset settings
 dataset_type = 'CocoDataset'
@@ -251,8 +243,30 @@ custom_hooks = [
         priority=49),
     dict(
         type='mmdet.PipelineSwitchHook',
-        switch_epoch=max_epochs - stage2_num_epochs,  # Switch at epoch 35
+        switch_epoch=max_epochs - stage2_num_epochs,
         switch_pipeline=train_pipeline_stage2),
+    # Mirrored validation hook - assesses bias for left/right pose orientation
+    dict(
+        type='MirroredValHook',
+        interval=1,
+        dataloader=dict(
+            batch_size=16,
+            num_workers=4,
+            dataset=dict(
+                type=dataset_type,
+                data_root=data_root,
+                data_mode=data_mode,
+                ann_file='annotations/person_keypoints_val2017_mirrored.json',
+                data_prefix=dict(img='val2017_mirrored/'),
+                test_mode=True,
+                pipeline=val_pipeline,
+            ),
+        ),
+        evaluator=dict(
+            type='CocoMetric',
+            ann_file=data_root + 'annotations/person_keypoints_val2017_mirrored.json',
+        ),
+    ),
     # General validation hook - monitors forgetting on diverse exercises
     dict(
         type='GeneralValHook',
@@ -264,15 +278,15 @@ custom_hooks = [
                 type=dataset_type,
                 data_root=general_val_data_root,
                 data_mode=data_mode,
-                ann_file='annotations/person_keypoints_val2017.json',
-                data_prefix=dict(img='val2017/'),
+                ann_file='annotations/general_val.json',
+                data_prefix=dict(img='general_val/'),
                 test_mode=True,
                 pipeline=val_pipeline,
             ),
         ),
         evaluator=dict(
             type='CocoMetric',
-            ann_file=general_val_data_root + 'annotations/person_keypoints_val2017.json',
+            ann_file=general_val_data_root + 'annotations/general_val.json',
         ),
     ),
 ]

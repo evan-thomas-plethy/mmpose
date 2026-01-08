@@ -1,7 +1,7 @@
 """
 Hook to evaluate on a secondary validation dataset during training.
 
-This hook runs evaluation on a "general" dataset after each primary validation,
+This hook runs evaluation on the mirrored validation dataset after each primary validation,
 logging metrics with a different prefix to track catastrophic forgetting.
 """
 
@@ -14,36 +14,36 @@ from mmengine.evaluator import Evaluator
 
 
 @HOOKS.register_module()
-class GeneralValHook(Hook):
+class MirroredValHook(Hook):
     """Evaluate on a secondary validation dataset to monitor forgetting.
     
     This hook runs after each validation epoch and evaluates the model
-    on a general/diverse dataset, logging metrics with a 'general_val/' prefix.
+    on the mirrored validation dataset, logging metrics with a 'mirrored_val/' prefix.
     
     Args:
-        dataloader (dict): Dataloader config for general validation dataset.
+        dataloader (dict): Dataloader config for mirrored validation dataset.
         evaluator (dict): Evaluator config (typically CocoMetric).
-        interval (int): Run general validation every N epochs. Default: 1.
+        interval (int): Run mirrored validation every N epochs. Default: 1.
         
     Example config:
         custom_hooks = [
             dict(
-                type='GeneralValHook',
+                type='MirroredValHook',
                 dataloader=dict(
                     batch_size=16,
                     num_workers=4,
                     dataset=dict(
                         type='CocoDataset',
-                        data_root='data/coco_general_val/',
-                        ann_file='annotations/person_keypoints_val2017.json',
-                        data_prefix=dict(img='val2017/'),
+                        data_root='data/coco/',
+                        ann_file='annotations/person_keypoints_val2017_mirrored.json',
+                        data_prefix=dict(img='val2017_mirrored/'),
                         test_mode=True,
                         pipeline=val_pipeline,
                     ),
                 ),
                 evaluator=dict(
                     type='CocoMetric',
-                    ann_file='data/coco_general_val/annotations/person_keypoints_val2017.json',
+                    ann_file='data/coco/annotations/person_keypoints_val2017_mirrored.json',
                 ),
             ),
         ]
@@ -76,7 +76,7 @@ class GeneralValHook(Hook):
         
         # Build evaluator with prefix
         evaluator_cfg = copy.deepcopy(self.evaluator_cfg)
-        evaluator_cfg.setdefault('prefix', 'general_val')
+        evaluator_cfg.setdefault('prefix', 'mirrored_val')
         self._evaluator = Evaluator(evaluator_cfg)
         
         # Set dataset_meta on the evaluator's metrics (required by CocoMetric)
@@ -85,22 +85,22 @@ class GeneralValHook(Hook):
             for metric in self._evaluator.metrics:
                 metric.dataset_meta = dataset_meta
         
-        runner.logger.info(f'GeneralValHook: Built dataloader with {len(self._dataloader.dataset)} samples')
+        runner.logger.info(f'MirroredValHook: Built dataloader with {len(self._dataloader.dataset)} samples')
     
     def after_val_epoch(self, runner: Runner, metrics: dict = None) -> None:
-        """Run general validation after each primary validation."""
+        """Run mirrored validation after each primary validation."""
         epoch = runner.epoch # NOT 0-indexed
         
         if epoch % self.interval != 0:
             return
         
         if self._dataloader is None or self._evaluator is None:
-            runner.logger.warning('GeneralValHook: dataloader or evaluator not initialized!')
+            runner.logger.warning('MirroredValHook: dataloader or evaluator not initialized!')
             return
         
-        runner.logger.info(f'Running general validation at epoch {epoch}...')
+        runner.logger.info(f'Running mirrored validation at epoch {epoch}...')
         
-        # Run inference on general dataset
+        # Run inference on mirrored validation dataset
         # Metrics are automatically reset by the evaluator
         model = runner.model
         was_training = model.training
@@ -119,22 +119,22 @@ class GeneralValHook(Hook):
                     )
             
             # Compute metrics
-            general_metrics = self._evaluator.evaluate(len(self._dataloader.dataset))
+            mirrored_metrics = self._evaluator.evaluate(len(self._dataloader.dataset))
             
             # Log metrics
-            runner.logger.info(f'General validation results: {general_metrics}')
+            runner.logger.info(f'Mirrored validation results: {mirrored_metrics}')
             
             # Log to visualizer (which logs to MLflow)
             if runner.visualizer is not None:
-                for key, value in general_metrics.items():
+                for key, value in mirrored_metrics.items():
                     if isinstance(value, (int, float)):
                         runner.visualizer.add_scalar(key, value, step=epoch)
             
             # Also add to message hub so it appears in logs
-            runner.message_hub.update_info('general_val_metrics', general_metrics)
+            runner.message_hub.update_info('mirrored_val_metrics', mirrored_metrics)
             
         except Exception as e:
-            runner.logger.error(f'GeneralValHook failed: {e}')
+            runner.logger.error(f'MirroredValHook failed: {e}')
             import traceback
             runner.logger.error(traceback.format_exc())
 
