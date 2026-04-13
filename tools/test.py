@@ -90,6 +90,22 @@ def parse_args():
         '--print-model',
         action='store_true',
         help='Print model architecture/layers and exit')
+    # Override validation/test dataset (for running on arbitrary val images + anns)
+    parser.add_argument(
+        '--val-data-root',
+        type=str,
+        default=None,
+        help='Data root for validation/test (overrides config). Use with --val-ann-file (and optionally --val-img-prefix).')
+    parser.add_argument(
+        '--val-ann-file',
+        type=str,
+        default=None,
+        help='Annotation file path relative to --val-data-root (e.g. annotations/person_keypoints_val2017.json).')
+    parser.add_argument(
+        '--val-img-prefix',
+        type=str,
+        default=None,
+        help='Image subfolder under --val-data-root (e.g. val2017/). Default: use config.')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -165,6 +181,40 @@ def merge_args(cfg, args):
     # -------------------- Other arguments --------------------
     if args.cfg_options is not None:
         cfg.merge_from_dict(args.cfg_options)
+
+    # -------------------- Validation dataset override --------------------
+    # Run on any given val images + annotations via --val-data-root / --val-ann-file
+    if args.val_data_root is not None:
+        if args.val_ann_file is None:
+            raise ValueError('--val-data-root requires --val-ann-file')
+        cfg.val_dataloader.dataset.data_root = args.val_data_root
+        cfg.val_dataloader.dataset.ann_file = args.val_ann_file
+        if args.val_img_prefix is not None:
+            cfg.val_dataloader.dataset.data_prefix = dict(img=args.val_img_prefix)
+        # test_dataloader typically references val_dataloader; evaluator needs full path
+        ann_path = osp.join(args.val_data_root, args.val_ann_file) if not osp.isabs(args.val_ann_file) else args.val_ann_file
+        if isinstance(cfg.val_evaluator, dict):
+            cfg.val_evaluator = dict(cfg.val_evaluator, ann_file=ann_path)
+        else:
+            cfg.val_evaluator = [
+                dict(ev, ann_file=ann_path) if ev.get('type') == 'CocoMetric' else ev
+                for ev in cfg.val_evaluator]
+        # Ensure test_* use the same settings (they may share refs with val_* in config)
+        cfg.test_dataloader = cfg.val_dataloader
+        cfg.test_evaluator = cfg.val_evaluator
+        # Re-apply --dump so preds are still written to the pkl (override replaced test_evaluator)
+        if args.dump is not None:
+            dump_metric = dict(type='DumpResults', out_file_path=args.dump)
+            if isinstance(cfg.test_evaluator, (list, tuple)):
+                cfg.test_evaluator = [*cfg.test_evaluator, dump_metric]
+            else:
+                cfg.test_evaluator = [cfg.test_evaluator, dump_metric]
+        # Drop hooks that build dataloaders from config paths (they expect original val setup)
+        skip_hooks = ('MirroredValHook', 'GeneralValHook')
+        cfg.custom_hooks = [
+            h for h in cfg.get('custom_hooks', [])
+            if h.get('type') not in skip_hooks
+        ]
 
     return cfg
 

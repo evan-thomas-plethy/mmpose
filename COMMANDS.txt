@@ -24,7 +24,6 @@ python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e
     mmpose/models/_models/pose/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth \
     --dump pretrain_mirrored_val.pkl \
     --work-dir work_dirs/pretrain_mirrored_val \
-    --print-model
 
 # Evaluate pretrained model on BOTH datasets and log to MLflow (for baseline comparison)
 python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-s_8xb256-420e_coco-256x192_finetune_heel_slides.py \
@@ -35,11 +34,20 @@ python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-s_8xb256-420e
     --mlflow-run-name "pretrain_baseline" \
     --work-dir work_dirs/pretrain_baseline
 
-# Test a finetuned checkpoint on a specific dataset
-python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_heel_slides.py \
-    work_dirs/rtmpose-m_heel_slides/backbone_lr_mult_0.1_BN_frozen_True/best_coco_AP_epoch_3.pth \
-    --work-dir work_dirs/test_best_heel_slides \
-    --dump backbone_lr_mult_0.1_BN_frozen_True.pkl
+# Test a finetuned checkpoint on a specific dataset (config defaults)
+python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_heel_slides_long_train.py \
+    work_dirs/rtmpose-m_heel_slides_offline_augs_dedup_param_0.995/v1.1/best_coco_AP_epoch_49.pth \
+    --work-dir work_dirs/compare_val_mirrored_val \
+    --dump v1_1_val.pkl
+
+# Test on any validation set: set val data root, annotations, and (optional) image prefix
+python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_heel_slides_long_train.py \
+    work_dirs/rtmpose-m_heel_slides_offline_augs_dedup_param_0.995/v1.1/best_coco_AP_epoch_49.pth \
+    --val-data-root data/coco_dedup_param_0.995_augmented/v1.1/ \
+    --val-ann-file annotations/person_keypoints_val2017_mirrored.json \
+    --val-img-prefix val2017_mirrored/ \
+    --work-dir work_dirs/compare_val_mirrored_val \
+    --dump v1_1_mirrored_val.pkl
 
 # Test a finetuned checkpoint on both datasets
 python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_heel_slides.py \
@@ -52,9 +60,9 @@ python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e
 python tools/copy_mlflow_run_metrics.py
 
 Vis:
-python tools/visualize_results.py --results pretrain_mirrored_val.pkl --images-dir data/coco_dedup_param_0.99/val2017_mirrored --output pretain_mirrored_val.mp4
+python tools/visualize_results.py --results v1_1_val.pkl --images-dir data/coco_dedup_param_0.995_augmented/v1.1/val2017 --output v1_1_val.mp4
 OR if file not found due to path being doubled
-python tools/visualize_results.py --results pretrain_mirrored_val.pkl --images-dir . --output pretrain_mirrored_val.mp4
+python tools/visualize_results.py --results v1_1_mirrored_val.pkl --images-dir . --output v1_1_mirrored_val.mp4
 
 Export Results:
 python tools/convert_pkl_to_json.py --results pretrain_det_standing_general_val.pkl --output pretrain_det_standing_general_val.json

@@ -3,7 +3,7 @@
 Overlay COCO keypoint annotations on images from a dataset directory.
 
 Usage:
-    python overlay_dataset.py coco_dedup_param_0.995_augmented_v1.1/train2017 coco_dedup_param_0.995_augmented_v1.1/annotations/person_keypoints_train2017.json --no-bbox --no-skeleton --output-dir ./overlay_output
+    python overlay_dataset.py coco_dedup_param_0.995/val2017 coco_dedup_param_0.995/annotations/person_keypoints_val2017.json --no-bbox --no-skeleton --output-dir ./overlay_output
     python overlay_dataset.py Heel_Slides/v1/frames Heel_Slides/v1/HeelSlides_V1.json --output-dir overlay_output
     python overlay_dataset.py Heel_Slides/v1/frames Heel_Slides/v1/HeelSlides_V1.json --max-images 50 --fps 15
 """

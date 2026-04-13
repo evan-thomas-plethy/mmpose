@@ -7,12 +7,12 @@ import shutil
 mlflow.set_tracking_uri("http://35.165.139.156:5000")
 
 # Source run info
-source_experiment = "rtmpose-m_heel_slides_dataset_deduplication"
-source_run_name = "dedup_0.995"  # or use run_id directly
+source_experiment = "rtmpose-m_heel_slides_offline_augs_dedup_param_0.995"
+source_run_name = "v1.1"  # or use run_id directly
 
 # Target experiment
-target_experiment = "rtmpose-m_heel_slides_offline_augs_dedup_param_0.995"
-target_run_name = "no_augs"
+target_experiment = "rtmpose-m_heel_slides_lr_sweep"
+target_run_name = "lr_1e-4_augs_v1.1"
 
 # Get source run
 source_exp = mlflow.get_experiment_by_name(source_experiment)
