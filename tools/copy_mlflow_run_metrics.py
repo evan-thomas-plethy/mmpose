@@ -4,15 +4,15 @@ import tempfile
 import shutil
 
 # Connect to MLflow
-mlflow.set_tracking_uri("http://35.165.139.156:5000")
+mlflow.set_tracking_uri("http://35.91.197.8:5000")
 
 # Source run info
-source_experiment = "rtmpose-m_heel_slides_offline_augs_dedup_param_0.995"
-source_run_name = "v1.1"  # or use run_id directly
+source_experiment = "rtmpose-m_ground_based_exercises_chromakey_and_dedup"
+source_run_name = "chromakey_v2"  # or use run_id directly
 
 # Target experiment
-target_experiment = "rtmpose-m_heel_slides_lr_sweep"
-target_run_name = "lr_1e-4_augs_v1.1"
+target_experiment = "rtmpose-m_ground_based_exercises_lr_sweep"
+target_run_name = "lr_1e-4"
 
 # Get source run
 source_exp = mlflow.get_experiment_by_name(source_experiment)

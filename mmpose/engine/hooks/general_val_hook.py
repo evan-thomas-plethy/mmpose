@@ -24,6 +24,9 @@ class GeneralValHook(Hook):
         dataloader (dict): Dataloader config for general validation dataset.
         evaluator (dict): Evaluator config (typically CocoMetric).
         interval (int): Run general validation every N epochs. Default: 1.
+        priority (int): Hook priority. Lower runs earlier in each hook phase;
+            use below ``EMAHook`` (e.g. 49) so ``after_val_epoch`` runs before EMA
+            restores training weights. Default: 48.
         
     Example config:
         custom_hooks = [
@@ -49,14 +52,14 @@ class GeneralValHook(Hook):
         ]
     """
     
-    priority = 'LOW'  # Run after other hooks
-    
     def __init__(
         self,
         dataloader: dict,
         evaluator: dict,
         interval: int = 1,
+        priority: int = 48,
     ):
+        self.priority = priority
         # Deep copy to avoid modifying original config
         self.dataloader_cfg = copy.deepcopy(dataloader)
         self.evaluator_cfg = copy.deepcopy(evaluator)

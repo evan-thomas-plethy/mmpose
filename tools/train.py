@@ -75,7 +75,7 @@ def parse_args():
     parser.add_argument(
         '--mlflow-tracking-uri',
         type=str,
-        default='http://35.165.139.156:5000',
+        default='http://35.91.197.8:5000',
         help='MLflow tracking server URI. If provided, enables MLflow logging.')
     parser.add_argument(
         '--mlflow-experiment-name',
@@ -315,6 +315,23 @@ def main():
                                 print(f"  Logged mirrored_val annotations: {osp.basename(mirrored_val_ann_file)}")
                             else:
                                 print(f"  Warning: Mirrored val annotations not found: {mirrored_val_ann_file}")
+                        break
+            # Log extra-dataset val annotations from CustomDatasetHook if present
+            if hasattr(cfg, 'custom_hooks') and cfg.custom_hooks is not None:
+                for hook in cfg.custom_hooks:
+                    if hook.get('type') == 'CustomDatasetHook':
+                        custom_ann_file = hook.get('evaluator', {}).get('ann_file')
+                        prefix = hook.get('metric_prefix', 'custom')
+                        if custom_ann_file:
+                            if osp.exists(custom_ann_file):
+                                mlflow.log_artifact(custom_ann_file)
+                                print(
+                                    f"  Logged {prefix} val annotations: "
+                                    f"{osp.basename(custom_ann_file)}")
+                            else:
+                                print(
+                                    f"  Warning: Custom dataset val annotations not found: "
+                                    f"{custom_ann_file}")
                         break
             # Log general_val annotation file from GeneralValHook if present
             if hasattr(cfg, 'custom_hooks') and cfg.custom_hooks is not None:

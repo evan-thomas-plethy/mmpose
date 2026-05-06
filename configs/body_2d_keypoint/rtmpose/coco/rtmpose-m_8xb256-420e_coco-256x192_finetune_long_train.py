@@ -10,7 +10,7 @@ load_from = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose
 
 # runtime - extended training
 max_epochs = 50
-stage2_num_epochs = 15  # Last 15 epochs use refined augmentation
+stage2_num_epochs = 0  # Last X epochs use refined augmentation
 base_lr = 1e-4  # Conservative learning rate for fine-tuning
 
 train_cfg = dict(max_epochs=max_epochs, val_interval=1)
@@ -122,8 +122,11 @@ general_val_data_root = 'data/coco_general_val/'  # General exercise validation
 backend_args = dict(backend='local')
 
 # pipelines - optimized for heel slides (sidelying poses)
+# ChromaKeyAug: near-white bg -> random room still (see mmpose.datasets.transforms
+# .chroma_key_transform for hardcoded defaults). Runs on full frame after load.
 train_pipeline = [
     dict(type='LoadImage', backend_args=backend_args),
+    dict(type='ChromaKeyAug'),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
     # RandomHalfBody removed - not suitable for sidelying full-body poses
@@ -161,6 +164,7 @@ val_pipeline = [
 # Stage 2 pipeline - even more conservative augmentation for refinement
 train_pipeline_stage2 = [
     dict(type='LoadImage', backend_args=backend_args),
+    dict(type='ChromaKeyAug'),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
     # RandomHalfBody removed - not suitable for sidelying full-body poses
@@ -249,6 +253,7 @@ custom_hooks = [
     dict(
         type='MirroredValHook',
         interval=1,
+        priority=48,
         dataloader=dict(
             batch_size=16,
             num_workers=4,
@@ -267,10 +272,35 @@ custom_hooks = [
             ann_file=data_root + 'annotations/person_keypoints_val2017_mirrored.json',
         ),
     ),
+    # Custom validation hook for Heel Slides holdout validation; sets MLflow prefix 'heel_slides/'
+    dict(
+        type='CustomDatasetHook',
+        metric_prefix='heel_slides',
+        interval=1,
+        priority=48,
+        dataloader=dict(
+            batch_size=16,
+            num_workers=4,
+            dataset=dict(
+                type=dataset_type,
+                data_root=data_root,
+                data_mode=data_mode,
+                ann_file='annotations/person_keypoints_val2017_heel_slides.json',
+                data_prefix=dict(img='val2017_heel_slides/'),
+                test_mode=True,
+                pipeline=val_pipeline,
+            ),
+        ),
+        evaluator=dict(
+            type='CocoMetric',
+            ann_file=data_root + 'annotations/person_keypoints_val2017_heel_slides.json',
+        ),
+    ),
     # General validation hook - monitors forgetting on diverse exercises
     dict(
         type='GeneralValHook',
         interval=1,
+        priority=48,
         dataloader=dict(
             batch_size=16,
             num_workers=4,

@@ -2,6 +2,7 @@
 from .bottomup_transforms import (BottomupGetHeatmapMask, BottomupRandomAffine,
                                   BottomupRandomChoiceResize,
                                   BottomupRandomCrop, BottomupResize)
+from .chroma_key_transform import ChromaKeyAug
 from .common_transforms import (Albumentation, FilterAnnotations,
                                 GenerateTarget, GetBBoxCenterScale,
                                 PhotometricDistortion, RandomBBoxTransform,
@@ -15,7 +16,7 @@ from .pose3d_transforms import RandomFlipAroundRoot
 from .topdown_transforms import TopdownAffine
 
 __all__ = [
-    'GetBBoxCenterScale', 'RandomBBoxTransform', 'RandomFlip',
+    'ChromaKeyAug', 'GetBBoxCenterScale', 'RandomBBoxTransform', 'RandomFlip',
     'RandomHalfBody', 'TopdownAffine', 'Albumentation',
     'PhotometricDistortion', 'PackPoseInputs', 'LoadImage',
     'BottomupGetHeatmapMask', 'BottomupRandomAffine', 'BottomupResize',

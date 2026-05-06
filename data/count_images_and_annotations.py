@@ -4,7 +4,7 @@ Count images and annotations in a COCO annotation file.
 
 Usage:
     python count_images_and_annotations.py path/to/annotations.json
-    python count_images_and_annotations.py coco/annotations/person_keypoints_train2017.json
+    python count_images_and_annotations.py coco_ground_based_exercises_v5/annotations/person_keypoints_val2017.json
 """
 
 import argparse

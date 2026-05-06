@@ -7,10 +7,10 @@ Creates mirrored (horizontally flipped) versions of validation images and annota
 
 Usage:
 python mirror_val_data.py \
-    --annotations coco/annotations/person_keypoints_val2017.json \
-    --images coco/val2017 \
-    --output-dir coco/val2017_mirrored \
-    --output-json coco/annotations/person_keypoints_val2017_mirrored.json
+    --annotations coco_ground_based_exercises_v5/annotations/person_keypoints_val2017.json \
+    --images coco_ground_based_exercises_v5/val2017 \
+    --output-dir coco_ground_based_exercises_v5/val2017_mirrored \
+    --output-json coco_ground_based_exercises_v5/annotations/person_keypoints_val2017_mirrored.json
 """
 
 # COCO keypoint swap pairs (left ↔ right)

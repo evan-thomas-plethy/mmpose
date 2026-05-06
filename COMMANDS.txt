@@ -3,66 +3,71 @@ AND for every session:
 conda activate mmpose
 export PYTHONPATH=/home/ubuntu/visionAI/mmpose:$PYTHONPATH
     To resolve this issue: Traceback (most recent call last): 596, in call_endpointameter 'metrics[3].name' supplied: Names may only contain alphanumerics, underscores (_), dashes (-), periods (.), spaces ( ), colon(:) and slashes (/).
+
+To shutdown GPU safely
+sudo shutdown -h +1
 ##################################################################################
 
+Please note: For ease of usage, we tend to name the current dataset as data/coco.
+Ensure that this dataset exists elsewhere in data/ under its actual name, since the next training dataset will become data/coco
+
+Prepare dataset:
+(Preferably split dataset on dedup param 0.99 version, if applicable, to slightly reduce training time with smalled val set)
+data/split_dataset.py
+data/mirror_val_data.py
+
+To reuse a previous val.json, use this to ensure videos remain atomically train/val 
+data/filter_val_data.py
+
 Train: 
-Single experiment:
-python tools/train.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_heel_slides_long_train.py \
-    --mlflow-experiment-name "rtmpose-m_heel_slides_dataset_deduplication" \
-    --mlflow-run-name "dedup_param_1.0"
+Single experiment (default looks for dataset under data/coco/ with train2017/ , val2017/ , annotations/person_keypoints_train2017.json , annotations/person_keypoints_val2017.json):
+python tools/train.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_long_train.py \
+    --mlflow-experiment-name "rtmpose-m_ground_based_exercises_chromakey_and_dedup" \
+    --mlflow-run-name "chromakey_v3"
 
 Sweep:
 python experiments/run_sweep.py experiments/sweep_config.yaml
 # Options:
 #   --dry-run              Print commands without executing
 #   --experiment NAME      Run only a specific experiment
-# General validation is handled by GeneralValHook in the config
 
 Test: 
-# Basic test of pretrained model on primary dataset
-python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192.py \
-    mmpose/models/_models/pose/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth \
-    --dump pretrain_mirrored_val.pkl \
-    --work-dir work_dirs/pretrain_mirrored_val \
+# Test on any validation set (preferred): explicit annotation JSON + images folder
+# (file_name entries in the JSON are loaded relative to --val-images-dir)
+python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_long_train.py \
+    work_dirs/rtmpose-m_ground_based_exercises_lr_sweep/lr_1e-3/best_coco_AP_epoch_48.pth \
+    --val-annotations data/heel_slides_v2_train_val/annotations/person_keypoints_val2017.json \
+    --val-images-dir data/heel_slides_v2_train_val/val2017 \
+    --work-dir work_dirs/eval_ground_based_exercises \
+    --dump ground_based_testing_heel_slides.pkl
 
-# Evaluate pretrained model on BOTH datasets and log to MLflow (for baseline comparison)
-python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-s_8xb256-420e_coco-256x192_finetune_heel_slides.py \
-    mmpose/models/_models/pose/rtmpose-s_simcc-aic-coco_pt-aic-coco_420e-256x192-fcb2599b_20230126.pth \
-    --eval-general \
-    --mlflow-tracking-uri http://35.165.139.156:5000 \
-    --mlflow-experiment-name "rtmpose-s_heel_slides_rotation" \
-    --mlflow-run-name "pretrain_baseline" \
-    --work-dir work_dirs/pretrain_baseline
+# Same eval, but append heel_slides/* COCO metrics only to an existing MLflow training run
+# (match --mlflow-experiment-name and --mlflow-run-name to that run; does not log new params)
+python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_long_train.py \
+    work_dirs/rtmpose-m_ground_based_exercises_lr_sweep/lr_5e-5/best_coco_AP_epoch_43.pth \
+    --val-annotations data/heel_slides_v2_train_val/annotations/person_keypoints_val2017.json \
+    --val-images-dir data/heel_slides_v2_train_val/val2017 \
+    --metric-prefix heel_slides \
+    --mlflow-experiment-name "rtmpose-m_ground_based_exercises_lr_sweep" \
+    --mlflow-run-name "lr_5e-5" \
+    --mlflow-append-to-existing-run \
+    --work-dir work_dirs/eval_ground_based_exercises \
+    --dump ground_based_testing_heel_slides.pkl
 
-# Test a finetuned checkpoint on a specific dataset (config defaults)
-python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_heel_slides_long_train.py \
-    work_dirs/rtmpose-m_heel_slides_offline_augs_dedup_param_0.995/v1.1/best_coco_AP_epoch_49.pth \
-    --work-dir work_dirs/compare_val_mirrored_val \
-    --dump v1_1_val.pkl
-
-# Test on any validation set: set val data root, annotations, and (optional) image prefix
-python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_heel_slides_long_train.py \
-    work_dirs/rtmpose-m_heel_slides_offline_augs_dedup_param_0.995/v1.1/best_coco_AP_epoch_49.pth \
-    --val-data-root data/coco_dedup_param_0.995_augmented/v1.1/ \
-    --val-ann-file annotations/person_keypoints_val2017_mirrored.json \
-    --val-img-prefix val2017_mirrored/ \
-    --work-dir work_dirs/compare_val_mirrored_val \
-    --dump v1_1_mirrored_val.pkl
-
-# Test a finetuned checkpoint on both datasets
-python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_heel_slides.py \
-    work_dirs/rtmpose-m_heel_slides/backbone_lr_mult_0.1_BN_frozen_True/best_coco_AP_epoch_25.pth \
-    --eval-general \
-    --work-dir work_dirs/finetune_eval
+# Alternative: COCO-style data root + ann path relative to root + image subfolder
+# python tools/test.py ... \
+#     --val-data-root data/Heel_Slides/v1/ \
+#     --val-ann-file annotations/person_keypoints_val2017.json \
+#     --val-img-prefix frames/
 
 # Copy run metrics/artifacts from one mlflow experiment to another
 # Update this file accordingly, then run
 python tools/copy_mlflow_run_metrics.py
 
 Vis:
-python tools/visualize_results.py --results v1_1_val.pkl --images-dir data/coco_dedup_param_0.995_augmented/v1.1/val2017 --output v1_1_val.mp4
+python tools/visualize_results.py --results ground_based_testing_heel_slides.pkl --images-dir data/Heel_Slides/v1/frames --output ground_based_testing_heel_slides.mp4
 OR if file not found due to path being doubled
-python tools/visualize_results.py --results v1_1_mirrored_val.pkl --images-dir . --output v1_1_mirrored_val.mp4
+python tools/visualize_results.py --results ground_based_testing_heel_slides.pkl --images-dir . --output ground_based_testing_heel_slides.mp4
 
 Export Results:
 python tools/convert_pkl_to_json.py --results pretrain_det_standing_general_val.pkl --output pretrain_det_standing_general_val.json
