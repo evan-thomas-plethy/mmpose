@@ -74,6 +74,19 @@ def _build_split_payload(
     }
 
 
+def _print_missing_ref_videos_in_target(
+    ref_val_prefixes: set[str],
+    target_prefixes: set[str],
+) -> None:
+    """Report ref-val video prefixes with no images in target anns."""
+    missing = sorted(ref_val_prefixes - target_prefixes)
+    if not missing:
+        return
+    print(f"\n⚠️ Ref val videos missing from target ({len(missing)}):")
+    for prefix in missing:
+        print(f"   {prefix}")
+
+
 def _copy_images_for_split(
     images: list[dict[str, Any]],
     frames_dir: str,
@@ -94,7 +107,6 @@ def _copy_images_for_split(
             shutil.copy2(src_path, dst_path)
             ok += 1
         else:
-            print(f"   ⚠️ Missing ({label}): {src_path}")
             missing += 1
     print(f"   ✓ {label}: copied {ok} images" + (f", missing {missing}" if missing else ""))
     return ok, missing
@@ -151,6 +163,7 @@ def split_dataset_by_reference_val(
         f"\n📌 Reference val distinct videos: {ref_video_count} | "
         f"found in target anns: {ref_videos_in_target}"
     )
+    _print_missing_ref_videos_in_target(val_prefixes, target_video_prefixes)
 
     print("\n📊 Split (target):")
     if skipped_no_file_name:

@@ -10,7 +10,7 @@ base_config: "configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-2
 # MLflow settings
 mlflow:
   tracking_uri: "http://35.91.197.8:5000"
-  experiment_name: "rtmpose-m_ground_based_exercises_plus_heel_slides_lr_sweep"
+  experiment_name: "rtmpose-m_ground_based_exercises_dataset_v6_lr_sweep"
 
 experiments:
   - name: "lr_1e-5"
@@ -18,48 +18,88 @@ experiments:
       base_lr: 1e-5
       optim_wrapper.optimizer.lr: 1e-5
       param_scheduler.1.eta_min: 1e-7
+      train_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      val_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      val_evaluator.ann_file: "data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      custom_hooks.2.evaluator.ann_file: "data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017_mirrored.json"
 
   - name: "lr_5e-5"
     overrides:
       base_lr: 5e-5
       optim_wrapper.optimizer.lr: 5e-5
       param_scheduler.1.eta_min: 5e-7
+      train_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      val_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      val_evaluator.ann_file: "data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      custom_hooks.2.evaluator.ann_file: "data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017_mirrored.json"
 
   - name: "lr_1e-4"
     overrides:
       base_lr: 1e-4
       optim_wrapper.optimizer.lr: 1e-4
       param_scheduler.1.eta_min: 1e-6
+      train_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      val_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      val_evaluator.ann_file: "data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      custom_hooks.2.evaluator.ann_file: "data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017_mirrored.json"
 
   - name: "lr_2e-4"
     overrides:
       base_lr: 2e-4
       optim_wrapper.optimizer.lr: 2e-4
       param_scheduler.1.eta_min: 2e-6
+      train_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      val_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      val_evaluator.ann_file: "data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      custom_hooks.2.evaluator.ann_file: "data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017_mirrored.json"
 
   - name: "lr_5e-4"
     overrides:
       base_lr: 5e-4
       optim_wrapper.optimizer.lr: 5e-4
       param_scheduler.1.eta_min: 5e-6
+      train_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      val_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      val_evaluator.ann_file: "data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      custom_hooks.2.evaluator.ann_file: "data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017_mirrored.json"
 
   - name: "lr_1e-3"
     overrides:
       base_lr: 1e-3
       optim_wrapper.optimizer.lr: 1e-3
       param_scheduler.1.eta_min: 1e-5
+      train_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      val_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      val_evaluator.ann_file: "data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      custom_hooks.2.evaluator.ann_file: "data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017_mirrored.json"
 
   - name: "lr_2e-3"
     overrides:
       base_lr: 2e-3
       optim_wrapper.optimizer.lr: 2e-3
       param_scheduler.1.eta_min: 2e-5
+      train_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      val_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      val_evaluator.ann_file: "data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      custom_hooks.2.evaluator.ann_file: "data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017_mirrored.json"
 
   - name: "lr_5e-3"
     overrides:
       base_lr: 5e-3
       optim_wrapper.optimizer.lr: 5e-3
       param_scheduler.1.eta_min: 5e-5
+      train_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      val_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      val_evaluator.ann_file: "data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/coco_ground_based_exercises_v6/"
+      custom_hooks.2.evaluator.ann_file: "data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017_mirrored.json"
 
 # # LR sweep augs v1.1
 # # Note: base_lr is kept for documentation, but we must also override:

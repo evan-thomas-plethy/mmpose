@@ -4,12 +4,17 @@ conda activate mmpose
 export PYTHONPATH=/home/ubuntu/visionAI/mmpose:$PYTHONPATH
     To resolve this issue: Traceback (most recent call last): 596, in call_endpointameter 'metrics[3].name' supplied: Names may only contain alphanumerics, underscores (_), dashes (-), periods (.), spaces ( ), colon(:) and slashes (/).
 
+tmux new -s train
+conda activate mmpose
+Ctrl + B, D to detach
+tmux attach -t train
+
 To shutdown GPU safely
 sudo shutdown -h +1
 ##################################################################################
 
-Please note: For ease of usage, we tend to name the current dataset as data/coco.
-Ensure that this dataset exists elsewhere in data/ under its actual name, since the next training dataset will become data/coco
+Please note: In the past, often renamed the current dataset as data/coco.
+Do NOT do this anymore.
 
 Prepare dataset:
 (Preferably split dataset on dedup param 0.99 version, if applicable, to slightly reduce training time with smalled val set)
@@ -27,6 +32,7 @@ python tools/train.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420
 
 Sweep:
 python experiments/run_sweep.py experiments/sweep_config.yaml
+sudo shutdown -h +1
 # Options:
 #   --dry-run              Print commands without executing
 #   --experiment NAME      Run only a specific experiment
@@ -35,11 +41,11 @@ Test:
 # Test on any validation set (preferred): explicit annotation JSON + images folder
 # (file_name entries in the JSON are loaded relative to --val-images-dir)
 python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_long_train.py \
-    work_dirs/rtmpose-m_ground_based_exercises_lr_sweep/lr_1e-3/best_coco_AP_epoch_48.pth \
-    --val-annotations data/heel_slides_v2_train_val/annotations/person_keypoints_val2017.json \
-    --val-images-dir data/heel_slides_v2_train_val/val2017 \
-    --work-dir work_dirs/eval_ground_based_exercises \
-    --dump ground_based_testing_heel_slides.pkl
+    mmpose/models/_models/pose/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth \
+    --val-annotations data/coco_ground_based_exercises_v5/annotations/person_keypoints_val2017.json \   
+    --val-images-dir data/coco_ground_based_exercises_v5/val2017 \
+    --work-dir work_dirs/eval_ground_based_exercises_v5_pretrained \
+    --dump ground_based_exercises_v5_pretrained.pkl
 
 # Same eval, but append heel_slides/* COCO metrics only to an existing MLflow training run
 # (match --mlflow-experiment-name and --mlflow-run-name to that run; does not log new params)
@@ -65,9 +71,9 @@ python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e
 python tools/copy_mlflow_run_metrics.py
 
 Vis:
-python tools/visualize_results.py --results ground_based_testing_heel_slides.pkl --images-dir data/Heel_Slides/v1/frames --output ground_based_testing_heel_slides.mp4
+python tools/visualize_results.py --results ground_based_exercises_v5_pretrained.pkl --images-dir data/ground_based_exercises_v5/val2017 --output ground_based_exercises_v5_pretrained.mp4
 OR if file not found due to path being doubled
-python tools/visualize_results.py --results ground_based_testing_heel_slides.pkl --images-dir . --output ground_based_testing_heel_slides.mp4
+python tools/visualize_results.py --results ground_based_exercises_v5_pretrained.pkl --images-dir . --output ground_based_exercises_v5_pretrained.mp4
 
 Export Results:
 python tools/convert_pkl_to_json.py --results pretrain_det_standing_general_val.pkl --output pretrain_det_standing_general_val.json

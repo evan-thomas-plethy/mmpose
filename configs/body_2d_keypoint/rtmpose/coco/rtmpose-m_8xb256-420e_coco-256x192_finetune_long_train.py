@@ -1,7 +1,7 @@
 _base_ = ['../../../_base_/default_runtime.py']
 
 # =============================================================================
-# Heel Slides Exercise Fine-tuning Configuration (50 Epochs)
+# Exercise Fine-tuning Configuration (50 Epochs)
 # =============================================================================
 # Extended training version for more thorough fine-tuning.
 
@@ -85,7 +85,7 @@ model = dict(
         act_cfg=dict(type='SiLU'),
         frozen_stages=-1, # 0 freezes stem, 1 freezes stage1 + stem, ...
         # Keep BatchNorm in eval mode during training to prevent running
-        # statistics from shifting to heel slides domain. Critical when using
+        # statistics from shifting to primary domain. Critical when using
         # low backbone LR (lr_mult=0.1) or fully frozen backbone (lr_mult=0).
         norm_eval=True),
     head=dict(
@@ -116,17 +116,17 @@ model = dict(
 # base dataset settings
 dataset_type = 'CocoDataset'
 data_mode = 'topdown'
-data_root = 'data/coco/'  # Heel slides data
+data_root = 'data/coco/'
 general_val_data_root = 'data/coco_general_val/'  # General exercise validation
 
 backend_args = dict(backend='local')
 
-# pipelines - optimized for heel slides (sidelying poses)
+# pipelines - optimized for primary domain
 # ChromaKeyAug: near-white bg -> random room still (see mmpose.datasets.transforms
 # .chroma_key_transform for hardcoded defaults). Runs on full frame after load.
 train_pipeline = [
     dict(type='LoadImage', backend_args=backend_args),
-    dict(type='ChromaKeyAug'),
+    # dict(type='ChromaKeyAug'),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
     # RandomHalfBody removed - not suitable for sidelying full-body poses
@@ -164,7 +164,7 @@ val_pipeline = [
 # Stage 2 pipeline - even more conservative augmentation for refinement
 train_pipeline_stage2 = [
     dict(type='LoadImage', backend_args=backend_args),
-    dict(type='ChromaKeyAug'),
+    # dict(type='ChromaKeyAug'),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
     # RandomHalfBody removed - not suitable for sidelying full-body poses
@@ -209,7 +209,7 @@ train_dataloader = dict(
         pipeline=train_pipeline,
     ))
 
-# Validation: heel slides only (primary domain)
+# Validation: primary domain
 # General exercise validation is done via general_val_hook
 val_dataloader = dict(
     batch_size=16,
@@ -234,7 +234,7 @@ default_hooks = dict(
     checkpoint=dict(
         type='CheckpointHook',
         interval=5,  # Save every 5 epochs (at 5, 10, 15, ..., 50)
-        save_best='coco/AP',  # Save best based on heel slides validation
+        save_best='coco/AP',  # Save best based on primary domain validation
         rule='greater',
         max_keep_ckpts=5))
 
@@ -272,30 +272,30 @@ custom_hooks = [
             ann_file=data_root + 'annotations/person_keypoints_val2017_mirrored.json',
         ),
     ),
-    # Custom validation hook for Heel Slides holdout validation; sets MLflow prefix 'heel_slides/'
-    dict(
-        type='CustomDatasetHook',
-        metric_prefix='heel_slides',
-        interval=1,
-        priority=48,
-        dataloader=dict(
-            batch_size=16,
-            num_workers=4,
-            dataset=dict(
-                type=dataset_type,
-                data_root=data_root,
-                data_mode=data_mode,
-                ann_file='annotations/person_keypoints_val2017_heel_slides.json',
-                data_prefix=dict(img='val2017_heel_slides/'),
-                test_mode=True,
-                pipeline=val_pipeline,
-            ),
-        ),
-        evaluator=dict(
-            type='CocoMetric',
-            ann_file=data_root + 'annotations/person_keypoints_val2017_heel_slides.json',
-        ),
-    ),
+    # # Custom validation: head keypoints (0-4) zeroed in GT; logs under no_head_kps/
+    # dict(
+    #     type='CustomDatasetHook',
+    #     metric_prefix='no_head_kps',
+    #     interval=1,
+    #     priority=48,
+    #     dataloader=dict(
+    #         batch_size=16,
+    #         num_workers=4,
+    #         dataset=dict(
+    #             type=dataset_type,
+    #             data_root=data_root,
+    #             data_mode=data_mode,
+    #             ann_file='annotations/person_keypoints_val2017_no_head_kps.json',
+    #             data_prefix=dict(img='val2017_no_head_kps/'),
+    #             test_mode=True,
+    #             pipeline=val_pipeline,
+    #         ),
+    #     ),
+    #     evaluator=dict(
+    #         type='CocoMetric',
+    #         ann_file=data_root + 'annotations/person_keypoints_val2017_no_head_kps.json',
+    #     ),
+    # ),
     # General validation hook - monitors forgetting on diverse exercises
     dict(
         type='GeneralValHook',
@@ -321,7 +321,7 @@ custom_hooks = [
     ),
 ]
 
-# Evaluator for heel slides validation
+# Evaluator for primary domain validation
 val_evaluator = dict(
     type='CocoMetric',
     ann_file=data_root + 'annotations/person_keypoints_val2017.json')
