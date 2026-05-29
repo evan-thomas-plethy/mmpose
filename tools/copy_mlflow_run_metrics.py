@@ -4,7 +4,7 @@ import tempfile
 import shutil
 
 # Connect to MLflow
-mlflow.set_tracking_uri("http://35.91.197.8:5000")
+mlflow.set_tracking_uri("http://52.41.68.196:5000")
 
 # Source run info
 source_experiment = "rtmpose-m_ground_based_exercises_chromakey_and_dedup"

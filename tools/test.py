@@ -64,7 +64,7 @@ def parse_args():
     parser.add_argument(
         '--mlflow-tracking-uri',
         type=str,
-        default='http://35.91.197.8:5000',
+        default='http://52.41.68.196:5000',
         help='MLflow tracking server URI. If provided, enables MLflow logging.')
     parser.add_argument(
         '--mlflow-experiment-name',

@@ -11,6 +11,8 @@ tmux attach -t train
 
 To shutdown GPU safely
 sudo shutdown -h +1
+# If need to cancel this
+sudo shutdown -c
 ##################################################################################
 
 Please note: In the past, often renamed the current dataset as data/coco.
@@ -23,15 +25,19 @@ data/mirror_val_data.py
 
 To reuse a previous val.json, use this to ensure videos remain atomically train/val 
 data/filter_val_data.py
+data/mirror_val_data.py
 
 Train: 
 Single experiment (default looks for dataset under data/coco/ with train2017/ , val2017/ , annotations/person_keypoints_train2017.json , annotations/person_keypoints_val2017.json):
-python tools/train.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_long_train.py \
+python tools/train.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune.py \
     --mlflow-experiment-name "rtmpose-m_ground_based_exercises_chromakey_and_dedup" \
     --mlflow-run-name "chromakey_v3"
 
-Sweep:
-python experiments/run_sweep.py experiments/sweep_config.yaml
+Sweep (v1 dataset sizes, frozen backbone):
+python experiments/run_sweep.py experiments/sweep_config_backbone_unfreeze_v4.yaml
+# v2 flat unfreeze ladder (seed2_n1000): sweep_config_backbone_unfreeze_v2.yaml
+# v3 ld0.5 unfreeze ladder (seed2_n1000): sweep_config_backbone_unfreeze_v3.yaml
+# v4 warmup ablations: sweep_config_backbone_unfreeze_v4.yaml
 sudo shutdown -h +1
 # Options:
 #   --dry-run              Print commands without executing
@@ -40,7 +46,7 @@ sudo shutdown -h +1
 Test: 
 # Test on any validation set (preferred): explicit annotation JSON + images folder
 # (file_name entries in the JSON are loaded relative to --val-images-dir)
-python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_long_train.py \
+python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune.py \
     mmpose/models/_models/pose/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth \
     --val-annotations data/coco_ground_based_exercises_v5/annotations/person_keypoints_val2017.json \   
     --val-images-dir data/coco_ground_based_exercises_v5/val2017 \
@@ -49,7 +55,7 @@ python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e
 
 # Same eval, but append heel_slides/* COCO metrics only to an existing MLflow training run
 # (match --mlflow-experiment-name and --mlflow-run-name to that run; does not log new params)
-python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_long_train.py \
+python tools/test.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune.py \
     work_dirs/rtmpose-m_ground_based_exercises_lr_sweep/lr_5e-5/best_coco_AP_epoch_43.pth \
     --val-annotations data/heel_slides_v2_train_val/annotations/person_keypoints_val2017.json \
     --val-images-dir data/heel_slides_v2_train_val/val2017 \

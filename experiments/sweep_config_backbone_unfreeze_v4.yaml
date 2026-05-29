@@ -1,0 +1,67 @@
+# =============================================================================
+# Sweep v4 — warmup ablations (Phase 2)
+# =============================================================================
+# All runs: full unfreeze (frozen_stages=-1), seed2_n1000, ld0.5 optimizer.
+# Baseline for comparison: seed2_n1000_unfreeze_full_ld0.5 (v3).
+#
+# Warmup variants (default global LinearLR end=500, HeadWarmupHook head=500):
+#   hwu1000 / hwu1500 — head-only extended warmup; backbone stays at 500-iter LinearLR
+#   wu1000 / wu1500   — all param groups (head + backbone) warmup via param_scheduler.0.end
+#
+# Run with: python experiments/run_sweep.py experiments/sweep_config_backbone_unfreeze_v4.yaml
+# v1 dataset sweep: sweep_config_backbone_unfreeze_v1.yaml
+# v2 flat unfreeze: sweep_config_backbone_unfreeze_v2.yaml
+# v3 ld0.5 unfreeze: sweep_config_backbone_unfreeze_v3.yaml
+# =============================================================================
+
+base_config: "configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_unfreeze.py"
+
+mlflow:
+  tracking_uri: "http://52.41.68.196:5000"
+  experiment_name: "rtmpose-m_merged_gbe_v6_lspe_sweep"
+
+experiments:
+  # Head-only extended warmup (backbone keeps default 500-iter LinearLR).
+  - name: "seed2_n1000_unfreeze_full_ld0.5_head_wu1000"
+    overrides:
+      model.backbone.frozen_stages: -1
+      train_dataloader.dataset.data_root: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/"
+      val_dataloader.dataset.data_root: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/"
+      val_evaluator.ann_file: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/"
+      custom_hooks.2.evaluator.ann_file: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.4.head_warmup_iters: 1000
+
+  - name: "seed2_n1000_unfreeze_full_ld0.5_head_wu2000"
+    overrides:
+      model.backbone.frozen_stages: -1
+      train_dataloader.dataset.data_root: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/"
+      val_dataloader.dataset.data_root: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/"
+      val_evaluator.ann_file: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/"
+      custom_hooks.2.evaluator.ann_file: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.4.head_warmup_iters: 2000
+
+  # Global warmup — all param groups (head + backbone) via LinearLR end iters.
+  # HeadWarmupHook iters aligned so head schedule matches global warmup duration.
+  - name: "seed2_n1000_unfreeze_full_ld0.5_wu1000"
+    overrides:
+      model.backbone.frozen_stages: -1
+      train_dataloader.dataset.data_root: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/"
+      val_dataloader.dataset.data_root: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/"
+      val_evaluator.ann_file: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/"
+      custom_hooks.2.evaluator.ann_file: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/annotations/person_keypoints_val2017_mirrored.json"
+      param_scheduler.0.end: 1000
+      custom_hooks.4.head_warmup_iters: 1000
+
+  - name: "seed2_n1000_unfreeze_full_ld0.5_wu2000"
+    overrides:
+      model.backbone.frozen_stages: -1
+      train_dataloader.dataset.data_root: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/"
+      val_dataloader.dataset.data_root: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/"
+      val_evaluator.ann_file: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/"
+      custom_hooks.2.evaluator.ann_file: "data/merged_gbe_v6_lspe/gbe_v6_lspe_seed2_n1000/annotations/person_keypoints_val2017_mirrored.json"
+      param_scheduler.0.end: 2000
+      custom_hooks.4.head_warmup_iters: 2000

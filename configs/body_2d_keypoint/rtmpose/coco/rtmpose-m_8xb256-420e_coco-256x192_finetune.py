@@ -1,16 +1,16 @@
 _base_ = ['../../../_base_/default_runtime.py']
 
 # =============================================================================
-# Heel Slides Exercise Fine-tuning Configuration
+# Exercise Fine-tuning Configuration (50 Epochs)
 # =============================================================================
-# Optimized for sidelying persons performing heel slide exercises.
+# Extended training version for more thorough fine-tuning.
 
 # Load pretrained checkpoint for fine-tuning
 load_from = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth'
 
-# runtime - optimized for fine-tuning (SHORT training to prevent forgetting)
-max_epochs = 15  # Reduced from 50: heel slides AP peaks early, more epochs = more forgetting
-stage2_num_epochs = 5  # Last 5 epochs use refined augmentation
+# runtime - extended training
+max_epochs = 50
+stage2_num_epochs = 0  # Last X epochs use refined augmentation
 base_lr = 1e-4  # Conservative learning rate for fine-tuning
 
 train_cfg = dict(max_epochs=max_epochs, val_interval=1)
@@ -33,21 +33,21 @@ optim_wrapper = dict(
             'backbone.stage4': dict(lr_mult=0.0),
         }))
 
-# learning rate schedule - adjusted for short 15-epoch training
-# With 8000 samples, batch_size=32: ~250 iters/epoch, 3750 total iters
+# learning rate schedule - adjusted for 50-epoch training
+# With 8000 samples, batch_size=32: ~250 iters/epoch
 param_scheduler = [
     dict(
         type='LinearLR',
         start_factor=1.0e-2,  # Start at 1e-6, warmup to 1e-4
         by_epoch=False,
         begin=0,
-        end=250),  # ~1 epoch warmup (reduced from 500)
+        end=500),  # ~2 epochs warmup
     dict(
         type='CosineAnnealingLR',
-        eta_min=base_lr * 0.1,  # End at 1e-5
-        begin=3,  # Start cosine annealing at epoch 3 (after peak)
+        eta_min=base_lr * 0.01,  # End at 1e-6 (lower for extended training)
+        begin=5,  # Start cosine annealing at epoch 5
         end=max_epochs,
-        T_max=max_epochs - 3,
+        T_max=max_epochs - 5,
         by_epoch=True,
         convert_to_iter_based=True),
 ]
@@ -85,7 +85,7 @@ model = dict(
         act_cfg=dict(type='SiLU'),
         frozen_stages=-1, # 0 freezes stem, 1 freezes stage1 + stem, ...
         # Keep BatchNorm in eval mode during training to prevent running
-        # statistics from shifting to heel slides domain. Critical when using
+        # statistics from shifting to primary domain. Critical when using
         # low backbone LR (lr_mult=0.1) or fully frozen backbone (lr_mult=0).
         norm_eval=True),
     head=dict(
@@ -116,14 +116,17 @@ model = dict(
 # base dataset settings
 dataset_type = 'CocoDataset'
 data_mode = 'topdown'
-data_root = 'data/coco/'  # Heel slides data
+data_root = 'data/coco/'
 general_val_data_root = 'data/coco_general_val/'  # General exercise validation
 
 backend_args = dict(backend='local')
 
-# pipelines - optimized for heel slides (sidelying poses)
+# pipelines - optimized for primary domain
+# ChromaKeyAug: near-white bg -> random room still (see mmpose.datasets.transforms
+# .chroma_key_transform for hardcoded defaults). Runs on full frame after load.
 train_pipeline = [
     dict(type='LoadImage', backend_args=backend_args),
+    # dict(type='ChromaKeyAug'),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
     # RandomHalfBody removed - not suitable for sidelying full-body poses
@@ -161,6 +164,7 @@ val_pipeline = [
 # Stage 2 pipeline - even more conservative augmentation for refinement
 train_pipeline_stage2 = [
     dict(type='LoadImage', backend_args=backend_args),
+    # dict(type='ChromaKeyAug'),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
     # RandomHalfBody removed - not suitable for sidelying full-body poses
@@ -205,7 +209,7 @@ train_dataloader = dict(
         pipeline=train_pipeline,
     ))
 
-# Validation: heel slides only (primary domain)
+# Validation: primary domain
 # General exercise validation is done via general_val_hook
 val_dataloader = dict(
     batch_size=16,
@@ -225,31 +229,22 @@ val_dataloader = dict(
 
 test_dataloader = val_dataloader
 
-# hooks - optimized for fine-tuning
+# hooks - optimized for extended training
 default_hooks = dict(
     checkpoint=dict(
         type='CheckpointHook',
-        interval=3,  # Save every 3 epochs (at 3, 6, 9, 12, 15)
-        save_best='coco/AP',  # Save best based on heel slides validation
+        interval=5,  # Save every 5 epochs (at 5, 10, 15, ..., 50)
+        save_best='coco/AP',  # Save best based on primary domain validation
         rule='greater',
-        max_keep_ckpts=5))  # Keep more checkpoints for short training
+        max_keep_ckpts=5))
 
 custom_hooks = [
     dict(
         type='EMAHook',
         ema_type='ExpMomentumEMA',
-        momentum=0.0001,  # Lower momentum for fine-tuning
+        momentum=0.0002,  # Slightly higher momentum for longer training
         update_buffers=True,
         priority=49),
-    # # THIS CODE DOES NOT WORK - do not uncomment
-    # # Backbone unfreezing hook - switches backbone lr_mult from 0.0 to 0.1
-    # # This allows the head to adapt first, then backbone fine-tuning begins
-    # dict(
-    #     type='ParamSwitchHook',
-    #     switch_epoch=0,
-    #     new_paramwise_cfg=dict(
-    #         custom_keys={'backbone': dict(lr_mult=0.1)}
-    #     )),
     dict(
         type='mmdet.PipelineSwitchHook',
         switch_epoch=max_epochs - stage2_num_epochs,
@@ -258,6 +253,7 @@ custom_hooks = [
     dict(
         type='MirroredValHook',
         interval=1,
+        priority=48,
         dataloader=dict(
             batch_size=16,
             num_workers=4,
@@ -276,10 +272,35 @@ custom_hooks = [
             ann_file=data_root + 'annotations/person_keypoints_val2017_mirrored.json',
         ),
     ),
+    # # Custom validation on v6 val split; logs under v6_val/
+    # dict(
+    #     type='CustomDatasetHook',
+    #     metric_prefix='v6_val',
+    #     interval=1,
+    #     priority=48,
+    #     dataloader=dict(
+    #         batch_size=16,
+    #         num_workers=4,
+    #         dataset=dict(
+    #             type=dataset_type,
+    #             data_root='data/coco_ground_based_exercises_v6/',
+    #             data_mode=data_mode,
+    #             ann_file='annotations/person_keypoints_val2017.json',
+    #             data_prefix=dict(img='val2017/'),
+    #             test_mode=True,
+    #             pipeline=val_pipeline,
+    #         ),
+    #     ),
+    #     evaluator=dict(
+    #         type='CocoMetric',
+    #         ann_file='data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017.json',
+    #     ),
+    # ),
     # General validation hook - monitors forgetting on diverse exercises
     dict(
         type='GeneralValHook',
         interval=1,
+        priority=48,
         dataloader=dict(
             batch_size=16,
             num_workers=4,
@@ -287,20 +308,27 @@ custom_hooks = [
                 type=dataset_type,
                 data_root=general_val_data_root,
                 data_mode=data_mode,
-                ann_file='annotations/annotations.json',
-                data_prefix=dict(img='val/'),
+                ann_file='annotations/general_val.json',
+                data_prefix=dict(img='general_val/'),
                 test_mode=True,
                 pipeline=val_pipeline,
             ),
         ),
         evaluator=dict(
             type='CocoMetric',
-            ann_file=general_val_data_root + 'annotations/annotations.json',
+            ann_file=general_val_data_root + 'annotations/general_val.json',
         ),
+    ),
+    # Head-only extended LR warmup (default 500 iters = global LinearLR).
+    # Unfreeze sweep overrides custom_hooks.4.head_warmup_iters (e.g. 1000, 1500).
+    dict(
+        type='HeadWarmupHook',
+        head_warmup_iters=500,
+        start_factor=0.01,
     ),
 ]
 
-# Evaluator for heel slides validation
+# Evaluator for primary domain validation
 val_evaluator = dict(
     type='CocoMetric',
     ann_file=data_root + 'annotations/person_keypoints_val2017.json')
