@@ -2,7 +2,6 @@ IMPORTANT: use cuda-12.1 (expect to be default)
 AND for every session:
 conda activate mmpose
 export PYTHONPATH=/home/ubuntu/visionAI/mmpose:$PYTHONPATH
-    To resolve this issue: Traceback (most recent call last): 596, in call_endpointameter 'metrics[3].name' supplied: Names may only contain alphanumerics, underscores (_), dashes (-), periods (.), spaces ( ), colon(:) and slashes (/).
 
 tmux new -s train
 conda activate mmpose
