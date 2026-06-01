@@ -33,11 +33,8 @@ python tools/train.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420
     --mlflow-experiment-name "rtmpose-m_ground_based_exercises_chromakey_and_dedup" \
     --mlflow-run-name "chromakey_v3"
 
-Sweep (v1 dataset sizes, frozen backbone):
-python experiments/run_sweep.py experiments/sweep_config_backbone_unfreeze_v4.yaml
-# v2 flat unfreeze ladder (seed2_n1000): sweep_config_backbone_unfreeze_v2.yaml
-# v3 ld0.5 unfreeze ladder (seed2_n1000): sweep_config_backbone_unfreeze_v3.yaml
-# v4 warmup ablations: sweep_config_backbone_unfreeze_v4.yaml
+Sweep:
+python experiments/run_sweep.py experiments/sweep_config_backbone_unfreeze_v5.yaml
 sudo shutdown -h +1
 # Options:
 #   --dry-run              Print commands without executing

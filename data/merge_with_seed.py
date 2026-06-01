@@ -3,6 +3,8 @@
 
 Component1 must be a standard COCO layout (annotations/, train2017/, val2017/).
 Val in the output is exactly component1's val (train = component1 train + sample).
+If component1 has mirrored val (``val2017_mirrored/`` and
+``annotations/person_keypoints_val2017_mirrored.json``), those are copied too.
 
 Component2 may be:
   - COCO layout: sample ``n`` images/anns from ``person_keypoints_train2017.json`` + train2017/
@@ -66,6 +68,9 @@ PLACEHOLDER_VAL = {
     "images": [],
     "annotations": [],
 }
+
+VAL_JSON_MIRRORED = "person_keypoints_val2017_mirrored.json"
+VAL_DIR_MIRRORED = "val2017_mirrored"
 
 
 def _resolve_component2(root: Path) -> tuple[Path, Path]:
@@ -194,6 +199,34 @@ def _patch_source2_info(train_json_path: Path, seed: int, n: int) -> None:
     _dump_json(str(train_json_path), data)
 
 
+def _copy_component1_mirrored_val(component1: Path, out_root: Path) -> int:
+    """Copy mirrored val images and annotations from component1 when present."""
+    src_json = component1 / "annotations" / VAL_JSON_MIRRORED
+    src_dir = component1 / VAL_DIR_MIRRORED
+    if not src_json.is_file() and not src_dir.is_dir():
+        return 0
+    if not src_json.is_file() or not src_dir.is_dir():
+        missing = []
+        if not src_json.is_file():
+            missing.append(str(src_json))
+        if not src_dir.is_dir():
+            missing.append(str(src_dir))
+        raise SystemExit(
+            f"component1 mirrored val is incomplete (expected both json and dir). "
+            f"Missing: {', '.join(missing)}"
+        )
+
+    ann_out = out_root / "annotations"
+    ann_out.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src_json, ann_out / VAL_JSON_MIRRORED)
+    n = copy_tree_images(
+        str(src_dir),
+        str(out_root / VAL_DIR_MIRRORED),
+        f"{VAL_DIR_MIRRORED} (component1)",
+    )
+    return n
+
+
 def _remove_val2_artifacts(out_root: Path) -> None:
     val2_dir = out_root / VAL_DIR_2
     val2_json = out_root / "annotations" / VAL_JSON_2
@@ -277,6 +310,8 @@ def merge_with_seed(
             str(staging / "val2017"), str(val_out_2), f"{VAL_DIR_2} (placeholder)"
         )
 
+        n_va_mirrored = _copy_component1_mirrored_val(c1, out)
+
         _patch_source2_info(ann_out / TRAIN_JSON, seed, n_component2)
 
         if not keep_val2:
@@ -289,6 +324,11 @@ def merge_with_seed(
             f"{len(merged_train['annotations'])} instances"
         )
         print(f"  Val (component1 only): val2017/ {n_va_a} images")
+        if n_va_mirrored:
+            print(
+                f"  Mirrored val (component1): {VAL_DIR_MIRRORED}/ "
+                f"{n_va_mirrored} images"
+            )
         print(f"  source2_info: seed={seed}, n={n_component2}")
         if keep_val2:
             print(f"  (kept empty {VAL_DIR_2}/ and {VAL_JSON_2})")
