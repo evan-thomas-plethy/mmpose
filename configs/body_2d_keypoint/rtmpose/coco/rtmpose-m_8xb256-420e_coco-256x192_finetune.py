@@ -319,13 +319,12 @@ custom_hooks = [
             ann_file=general_val_data_root + 'annotations/general_val.json',
         ),
     ),
-    # Head-only extended LR warmup (default 500 iters = global LinearLR).
-    # Unfreeze sweep overrides custom_hooks.4.head_warmup_iters (e.g. 1000, 1500).
-    dict(
-        type='HeadWarmupHook',
-        head_warmup_iters=500,
-        start_factor=0.01,
-    ),
+    # # Head-only extended LR warmup (default 500 iters = global LinearLR).
+    # dict(
+    #     type='HeadWarmupHook',
+    #     head_warmup_iters=500,
+    #     start_factor=1.0e-2,
+    # ),
 ]
 
 # Evaluator for primary domain validation
