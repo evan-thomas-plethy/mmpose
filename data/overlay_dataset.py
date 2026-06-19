@@ -3,13 +3,13 @@
 Overlay COCO keypoint annotations on images from a dataset directory.
 
 Usage:
-    python overlay_dataset.py coco_dedup_param_0.995/val2017 coco_dedup_param_0.995/annotations/person_keypoints_val2017.json --no-bbox --no-skeleton --output-dir ./overlay_output
-    python overlay_dataset.py Heel_Slides/v1/frames Heel_Slides/v1/HeelSlides_V1.json --output-dir overlay_output
     python overlay_dataset.py Heel_Slides/v1/frames Heel_Slides/v1/HeelSlides_V1.json --max-images 50 --fps 15
+    python overlay_dataset.py Heel_Slides/v1/frames Heel_Slides/v1/HeelSlides_V1.json --output-dir ./overlay_output
 """
 
 import argparse
 import json
+import re
 import cv2
 import numpy as np
 import shutil
@@ -29,6 +29,18 @@ COCO_SKELETON = [
     (11, 13), (13, 15),  # left leg
     (12, 14), (14, 16),  # right leg
 ]
+
+VIDEO_NAME_RE = re.compile(r"^(.*)_frame_\d+$", re.IGNORECASE)
+
+
+def video_name_from_file_name(file_name: str) -> str | None:
+    """Return the video/session stem before ``_frame_XXXX``."""
+    stem = Path(file_name).stem
+    match = VIDEO_NAME_RE.match(stem)
+    if match:
+        return match.group(1)
+    return None
+
 
 # Colors for different body parts (BGR)
 COLORS = {
@@ -144,6 +156,37 @@ def draw_bbox(image, bbox, color=(0, 255, 0), thickness=2):
     return image
 
 
+def draw_video_label(image, label: str):
+    """Draw the video/session name along the top of the frame."""
+    if not label:
+        return image
+
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.55
+    font_thickness = 1
+    padding_x = 8
+    padding_y = 6
+
+    (text_w, text_h), baseline = cv2.getTextSize(
+        label, font, font_scale, font_thickness
+    )
+    box_h = text_h + baseline + padding_y * 2
+    box_w = min(text_w + padding_x * 2, image.shape[1])
+
+    cv2.rectangle(image, (0, 0), (box_w, box_h), (0, 0, 0), -1)
+    cv2.putText(
+        image,
+        label,
+        (padding_x, text_h + padding_y),
+        font,
+        font_scale,
+        (255, 255, 255),
+        font_thickness,
+        cv2.LINE_AA,
+    )
+    return image
+
+
 def clear_output_directory(output_dir):
     """Clear all files in the output directory."""
     if output_dir.exists():
@@ -220,7 +263,7 @@ def overlay_dataset(
     Args:
         frames_dir: Directory containing frame images
         ann_file: Path to COCO annotation JSON file
-        output_dir: Output directory for annotated images (default: <frames_dir>_overlay)
+        output_dir: Output directory for annotated images (default: ./)
         output_video: Output video path (optional)
         max_images: Maximum number of images to process (None for all)
         draw_bbox_flag: Whether to draw bounding boxes
@@ -231,7 +274,7 @@ def overlay_dataset(
     ann_file = Path(ann_file)
     
     if output_dir is None:
-        output_dir = frames_dir.parent / f"{frames_dir.name}_overlay"
+        output_dir = Path(".")
     else:
         output_dir = Path(output_dir)
     
@@ -324,7 +367,11 @@ def overlay_dataset(
             # Draw keypoints
             if 'keypoints' in ann:
                 image = draw_keypoints(image, ann['keypoints'])
-        
+
+        video_label = video_name_from_file_name(img_info['file_name'])
+        if video_label:
+            image = draw_video_label(image, video_label)
+
         # Save annotated image
         output_filename = f"{Path(img_info['file_name']).stem}_overlay.jpg"
         output_path = output_dir / output_filename
@@ -355,7 +402,7 @@ def main():
     )
     parser.add_argument(
         '--output-dir', type=str, default=None,
-        help='Output directory for annotated images (default: <frames_dir>_overlay)'
+        help='Output directory for annotated images (default: ./)',
     )
     parser.add_argument(
         '--output', type=str, default=None,

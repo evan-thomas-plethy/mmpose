@@ -1,0 +1,115 @@
+# =============================================================================
+# Sweep v2 — head-only (frozen backbone) on GBE v9 and merged datasets
+# =============================================================================
+# Eight runs: gbe_v9 + 3 merged datasets x base lr {1e-4, 1e-3}.
+# Uses finetune.py (backbone frozen via per-stage lr_mult=0.0); head trains at
+# optim_wrapper.optimizer.lr. Cosine eta_min scaled to 1% of base lr.
+#
+# Same dataset prerequisites as v1 (see sweep_config_..._v1.yaml).
+#
+# Run with:
+#   python experiments/run_sweep.py experiments/sweep_config_merged_gbe_v9_gbe_app_vids_various_versions_v2.yaml
+# =============================================================================
+
+base_config: "configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune.py"
+
+mlflow:
+  tracking_uri: "http://52.41.68.196:5000"
+  experiment_name: "rtmpose-m_merged_gbe_v9_gbe_app_vids_various_versions_sweep"
+
+experiments:
+  - name: "gbe_v9_head_only_lr1e-4"
+    overrides:
+      optim_wrapper.optimizer.lr: 1e-4
+      param_scheduler.1.eta_min: 1e-6
+      train_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v9/"
+      val_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v9/"
+      val_evaluator.ann_file: "data/coco_ground_based_exercises_v9/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/coco_ground_based_exercises_v9/"
+      custom_hooks.2.evaluator.ann_file: "data/coco_ground_based_exercises_v9/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/coco_ground_based_exercises_v9/"
+      custom_hooks.3.evaluator.ann_file: "data/coco_ground_based_exercises_v9/annotations/person_keypoints_val2017_gbe_v9_only.json"
+
+  - name: "gbe_v9_head_only_lr1e-3"
+    overrides:
+      optim_wrapper.optimizer.lr: 1e-3
+      param_scheduler.1.eta_min: 1e-5
+      train_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v9/"
+      val_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v9/"
+      val_evaluator.ann_file: "data/coco_ground_based_exercises_v9/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/coco_ground_based_exercises_v9/"
+      custom_hooks.2.evaluator.ann_file: "data/coco_ground_based_exercises_v9/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/coco_ground_based_exercises_v9/"
+      custom_hooks.3.evaluator.ann_file: "data/coco_ground_based_exercises_v9/annotations/person_keypoints_val2017_gbe_v9_only.json"
+
+  - name: "merged_gbe_v9_app_vids_v2_head_only_lr1e-4"
+    overrides:
+      optim_wrapper.optimizer.lr: 1e-4
+      param_scheduler.1.eta_min: 1e-6
+      train_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v2/"
+      val_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v2/"
+      val_evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v2/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v2/"
+      custom_hooks.2.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v2/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v2/"
+      custom_hooks.3.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v2/annotations/person_keypoints_val2017_gbe_v9_only.json"
+
+  - name: "merged_gbe_v9_app_vids_v2_head_only_lr1e-3"
+    overrides:
+      optim_wrapper.optimizer.lr: 1e-3
+      param_scheduler.1.eta_min: 1e-5
+      train_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v2/"
+      val_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v2/"
+      val_evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v2/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v2/"
+      custom_hooks.2.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v2/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v2/"
+      custom_hooks.3.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v2/annotations/person_keypoints_val2017_gbe_v9_only.json"
+
+  - name: "merged_gbe_v9_app_vids_v3_head_only_lr1e-4"
+    overrides:
+      optim_wrapper.optimizer.lr: 1e-4
+      param_scheduler.1.eta_min: 1e-6
+      train_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v3/"
+      val_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v3/"
+      val_evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v3/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v3/"
+      custom_hooks.2.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v3/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v3/"
+      custom_hooks.3.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v3/annotations/person_keypoints_val2017_gbe_v9_only.json"
+
+  - name: "merged_gbe_v9_app_vids_v3_head_only_lr1e-3"
+    overrides:
+      optim_wrapper.optimizer.lr: 1e-3
+      param_scheduler.1.eta_min: 1e-5
+      train_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v3/"
+      val_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v3/"
+      val_evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v3/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v3/"
+      custom_hooks.2.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v3/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v3/"
+      custom_hooks.3.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v3/annotations/person_keypoints_val2017_gbe_v9_only.json"
+
+  - name: "merged_gbe_v9_app_vids_v4_head_only_lr1e-4"
+    overrides:
+      optim_wrapper.optimizer.lr: 1e-4
+      param_scheduler.1.eta_min: 1e-6
+      train_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v4/"
+      val_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v4/"
+      val_evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v4/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v4/"
+      custom_hooks.2.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v4/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v4/"
+      custom_hooks.3.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v4/annotations/person_keypoints_val2017_gbe_v9_only.json"
+
+  - name: "merged_gbe_v9_app_vids_v4_head_only_lr1e-3"
+    overrides:
+      optim_wrapper.optimizer.lr: 1e-3
+      param_scheduler.1.eta_min: 1e-5
+      train_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v4/"
+      val_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v4/"
+      val_evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v4/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v4/"
+      custom_hooks.2.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v4/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v4/"
+      custom_hooks.3.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v4/annotations/person_keypoints_val2017_gbe_v9_only.json"

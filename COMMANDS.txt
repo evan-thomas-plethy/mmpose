@@ -18,13 +18,16 @@ Please note: In the past, often renamed the current dataset as data/coco.
 Do NOT do this anymore.
 
 Prepare dataset:
-(Preferably split dataset on dedup param 0.99 version, if applicable, to slightly reduce training time with smalled val set)
+(Preferably split dataset on strictest dedup param version, if applicable, to slightly reduce training time with smaller val set)
 data/split_dataset.py
 data/mirror_val_data.py
 
 To reuse a previous val.json, use this to ensure videos remain atomically train/val 
 data/filter_val_data.py
 data/mirror_val_data.py
+
+If using a hybrid dataset, prepare both components accordingly and use
+python merge_with_seed.py
 
 Train: 
 Single experiment (default looks for dataset under data/coco/ with train2017/ , val2017/ , annotations/person_keypoints_train2017.json , annotations/person_keypoints_val2017.json):
@@ -33,7 +36,7 @@ python tools/train.py configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420
     --mlflow-run-name "chromakey_v3"
 
 Sweep:
-python experiments/run_sweep.py experiments/sweep_config_backbone_unfreeze_v5.yaml
+python experiments/run_sweep.py experiments/sweep_config_merged_gbe_v9_gbe_app_vids_various_versions_v4.yaml
 sudo shutdown -h +1
 # Options:
 #   --dry-run              Print commands without executing

@@ -1,0 +1,127 @@
+# =============================================================================
+# Sweep — GBE v9, App Vids v2/v3/v4, and merged GBE v9 + App Vids v2/v3/v4
+# =============================================================================
+# Seven runs total. Hyperparams match v1/v2/v3 baseline:
+#   frozen_stages=-1, CSPNeXtLayerDecay ld0.5
+#
+# Prerequisites:
+#   cd data
+#   python filter_val_data.py \
+#     --ref-val coco_ground_based_exercises_v6/annotations/person_keypoints_val2017.json \
+#     --target-anns Ground_Based_Exercises/v9/Ground_Based_Exercises_v9.json \
+#     --frames-dir Ground_Based_Exercises/v1/frames \
+#     --output coco_ground_based_exercises_v9
+#   python mirror_val_data.py \
+#     --annotations coco_ground_based_exercises_v9/annotations/person_keypoints_val2017.json \
+#     --images coco_ground_based_exercises_v9/val2017 \
+#     --output-dir coco_ground_based_exercises_v9/val2017_mirrored \
+#     --output-json coco_ground_based_exercises_v9/annotations/person_keypoints_val2017_mirrored.json
+#   for V in v2 v3 v4; do
+#     python merge_datasets.py \
+#       coco_ground_based_exercises_v9 \
+#       coco_ground_based_exercises_app_vids_${V} \
+#       --output merged_gbe_v9_gbe_app_vids_${V} \
+#       --merge-val --force
+#     python mirror_val_data.py \
+#       --annotations merged_gbe_v9_gbe_app_vids_${V}/annotations/person_keypoints_val2017.json \
+#       --images merged_gbe_v9_gbe_app_vids_${V}/val2017 \
+#       --output-dir merged_gbe_v9_gbe_app_vids_${V}/val2017_mirrored \
+#       --output-json merged_gbe_v9_gbe_app_vids_${V}/annotations/person_keypoints_val2017_mirrored.json
+#   done
+#   SRC=coco_ground_based_exercises_v9
+#   for D in coco_ground_based_exercises_v9 coco_ground_based_exercises_app_vids_v2 \
+#            coco_ground_based_exercises_app_vids_v3 coco_ground_based_exercises_app_vids_v4 \
+#            merged_gbe_v9_gbe_app_vids_v2 merged_gbe_v9_gbe_app_vids_v3 \
+#            merged_gbe_v9_gbe_app_vids_v4; do
+#     cp -a "$SRC/val2017" "$D/val2017_gbe_v9_only"
+#     cp -a "$SRC/annotations/person_keypoints_val2017.json" \
+#       "$D/annotations/person_keypoints_val2017_gbe_v9_only.json"
+#   done
+#
+# Run with:
+#   python experiments/run_sweep.py experiments/sweep_config_merged_gbe_v9_gbe_app_vids_various_versions.yaml
+# =============================================================================
+
+base_config: "configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune_unfreeze.py"
+
+mlflow:
+  tracking_uri: "http://52.41.68.196:5000"
+  experiment_name: "rtmpose-m_merged_gbe_v9_gbe_app_vids_various_versions_sweep"
+
+experiments:
+  - name: "gbe_v9_unfreeze_full_ld0.5"
+    overrides:
+      model.backbone.frozen_stages: -1
+      train_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v9/"
+      val_dataloader.dataset.data_root: "data/coco_ground_based_exercises_v9/"
+      val_evaluator.ann_file: "data/coco_ground_based_exercises_v9/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/coco_ground_based_exercises_v9/"
+      custom_hooks.2.evaluator.ann_file: "data/coco_ground_based_exercises_v9/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/coco_ground_based_exercises_v9/"
+      custom_hooks.3.evaluator.ann_file: "data/coco_ground_based_exercises_v9/annotations/person_keypoints_val2017_gbe_v9_only.json"
+
+  - name: "gbe_app_vids_v2_unfreeze_full_ld0.5"
+    overrides:
+      model.backbone.frozen_stages: -1
+      train_dataloader.dataset.data_root: "data/coco_ground_based_exercises_app_vids_v2/"
+      val_dataloader.dataset.data_root: "data/coco_ground_based_exercises_app_vids_v2/"
+      val_evaluator.ann_file: "data/coco_ground_based_exercises_app_vids_v2/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/coco_ground_based_exercises_app_vids_v2/"
+      custom_hooks.2.evaluator.ann_file: "data/coco_ground_based_exercises_app_vids_v2/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/coco_ground_based_exercises_app_vids_v2/"
+      custom_hooks.3.evaluator.ann_file: "data/coco_ground_based_exercises_app_vids_v2/annotations/person_keypoints_val2017_gbe_v9_only.json"
+
+  - name: "gbe_app_vids_v3_unfreeze_full_ld0.5"
+    overrides:
+      model.backbone.frozen_stages: -1
+      train_dataloader.dataset.data_root: "data/coco_ground_based_exercises_app_vids_v3/"
+      val_dataloader.dataset.data_root: "data/coco_ground_based_exercises_app_vids_v3/"
+      val_evaluator.ann_file: "data/coco_ground_based_exercises_app_vids_v3/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/coco_ground_based_exercises_app_vids_v3/"
+      custom_hooks.2.evaluator.ann_file: "data/coco_ground_based_exercises_app_vids_v3/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/coco_ground_based_exercises_app_vids_v3/"
+      custom_hooks.3.evaluator.ann_file: "data/coco_ground_based_exercises_app_vids_v3/annotations/person_keypoints_val2017_gbe_v9_only.json"
+
+  - name: "gbe_app_vids_v4_unfreeze_full_ld0.5"
+    overrides:
+      model.backbone.frozen_stages: -1
+      train_dataloader.dataset.data_root: "data/coco_ground_based_exercises_app_vids_v4/"
+      val_dataloader.dataset.data_root: "data/coco_ground_based_exercises_app_vids_v4/"
+      val_evaluator.ann_file: "data/coco_ground_based_exercises_app_vids_v4/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/coco_ground_based_exercises_app_vids_v4/"
+      custom_hooks.2.evaluator.ann_file: "data/coco_ground_based_exercises_app_vids_v4/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/coco_ground_based_exercises_app_vids_v4/"
+      custom_hooks.3.evaluator.ann_file: "data/coco_ground_based_exercises_app_vids_v4/annotations/person_keypoints_val2017_gbe_v9_only.json"
+
+  - name: "merged_gbe_v9_app_vids_v2_unfreeze_full_ld0.5"
+    overrides:
+      model.backbone.frozen_stages: -1
+      train_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v2/"
+      val_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v2/"
+      val_evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v2/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v2/"
+      custom_hooks.2.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v2/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v2/"
+      custom_hooks.3.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v2/annotations/person_keypoints_val2017_gbe_v9_only.json"
+
+  - name: "merged_gbe_v9_app_vids_v3_unfreeze_full_ld0.5"
+    overrides:
+      model.backbone.frozen_stages: -1
+      train_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v3/"
+      val_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v3/"
+      val_evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v3/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v3/"
+      custom_hooks.2.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v3/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v3/"
+      custom_hooks.3.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v3/annotations/person_keypoints_val2017_gbe_v9_only.json"
+
+  - name: "merged_gbe_v9_app_vids_v4_unfreeze_full_ld0.5"
+    overrides:
+      model.backbone.frozen_stages: -1
+      train_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v4/"
+      val_dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v4/"
+      val_evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v4/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v4/"
+      custom_hooks.2.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v4/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/merged_gbe_v9_gbe_app_vids_v4/"
+      custom_hooks.3.evaluator.ann_file: "data/merged_gbe_v9_gbe_app_vids_v4/annotations/person_keypoints_val2017_gbe_v9_only.json"

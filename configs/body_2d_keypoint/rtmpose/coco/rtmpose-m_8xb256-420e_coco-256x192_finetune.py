@@ -272,30 +272,30 @@ custom_hooks = [
             ann_file=data_root + 'annotations/person_keypoints_val2017_mirrored.json',
         ),
     ),
-    # # Custom validation on v6 val split; logs under v6_val/
-    # dict(
-    #     type='CustomDatasetHook',
-    #     metric_prefix='v6_val',
-    #     interval=1,
-    #     priority=48,
-    #     dataloader=dict(
-    #         batch_size=16,
-    #         num_workers=4,
-    #         dataset=dict(
-    #             type=dataset_type,
-    #             data_root='data/coco_ground_based_exercises_v6/',
-    #             data_mode=data_mode,
-    #             ann_file='annotations/person_keypoints_val2017.json',
-    #             data_prefix=dict(img='val2017/'),
-    #             test_mode=True,
-    #             pipeline=val_pipeline,
-    #         ),
-    #     ),
-    #     evaluator=dict(
-    #         type='CocoMetric',
-    #         ann_file='data/coco_ground_based_exercises_v6/annotations/person_keypoints_val2017.json',
-    #     ),
-    # ),
+    # GBE v9-only val (bundled in each dataset as val2017_gbe_v9_only/); logs under v9_val/
+    dict(
+        type='CustomDatasetHook',
+        metric_prefix='gbe_v9_only_val',
+        interval=1,
+        priority=48,
+        dataloader=dict(
+            batch_size=16,
+            num_workers=4,
+            dataset=dict(
+                type=dataset_type,
+                data_root=data_root,
+                data_mode=data_mode,
+                ann_file='annotations/person_keypoints_val2017_gbe_v9_only.json',
+                data_prefix=dict(img='val2017_gbe_v9_only/'),
+                test_mode=True,
+                pipeline=val_pipeline,
+            ),
+        ),
+        evaluator=dict(
+            type='CocoMetric',
+            ann_file=data_root + 'annotations/person_keypoints_val2017_gbe_v9_only.json',
+        ),
+    ),
     # General validation hook - monitors forgetting on diverse exercises
     dict(
         type='GeneralValHook',
