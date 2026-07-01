@@ -10,7 +10,8 @@ Component2 may be:
   - COCO layout: sample ``n`` images/anns from ``person_keypoints_train2017.json`` + train2017/
   - Flat layout: one ``*.json`` at the root + ``frames/`` (e.g. LSPe)
 
-After merge, ``info.source2_info`` gets ``seed`` and ``n`` (after ``description``).
+After merge, the component2 source entry (last source from B) gets ``seed`` and
+``n`` (after ``description``).
 Empty ``val2017_2/`` from the staging placeholder is removed by default.
 
 Usage:
@@ -45,6 +46,7 @@ from merge_datasets import (
     VAL_DIR_2,
     VAL_JSON_2,
     assert_layout,
+    collect_source_infos,
     copy_tree_images,
     merge_coco,
     _dump_json,
@@ -181,10 +183,16 @@ def _stage_component2_sample(
     )
 
 
-def _patch_source2_info(train_json_path: Path, seed: int, n: int) -> None:
+def _patch_component2_source_info(
+    train_json_path: Path,
+    seed: int,
+    n: int,
+    n_component1_sources: int,
+) -> None:
     data = _load_json(str(train_json_path))
     info = data.get("info", {})
-    s2 = dict(info.get("source2_info", {}))
+    source_key = f"source{n_component1_sources + 1}_info"
+    s2 = dict(info.get(source_key, {}))
     s2["seed"] = seed
     s2["n"] = n
     new_s2: dict[str, Any] = {}
@@ -194,7 +202,7 @@ def _patch_source2_info(train_json_path: Path, seed: int, n: int) -> None:
     for key, val in s2.items():
         if key not in new_s2:
             new_s2[key] = val
-    info["source2_info"] = new_s2
+    info[source_key] = new_s2
     data["info"] = info
     _dump_json(str(train_json_path), data)
 
@@ -288,6 +296,7 @@ def merge_with_seed(
 
         train_a = _load_json(str(c1 / "annotations" / TRAIN_JSON))
         train_b = _load_json(str(staging / "annotations" / TRAIN_JSON))
+        n_component1_sources = len(collect_source_infos(train_a.get("info", {})))
         merged_train = merge_coco(train_a, train_b)
         _dump_json(str(ann_out / TRAIN_JSON), merged_train)
 
@@ -312,7 +321,9 @@ def merge_with_seed(
 
         n_va_mirrored = _copy_component1_mirrored_val(c1, out)
 
-        _patch_source2_info(ann_out / TRAIN_JSON, seed, n_component2)
+        _patch_component2_source_info(
+            ann_out / TRAIN_JSON, seed, n_component2, n_component1_sources
+        )
 
         if not keep_val2:
             _remove_val2_artifacts(out)
@@ -329,7 +340,9 @@ def merge_with_seed(
                 f"  Mirrored val (component1): {VAL_DIR_MIRRORED}/ "
                 f"{n_va_mirrored} images"
             )
-        print(f"  source2_info: seed={seed}, n={n_component2}")
+        print(
+            f"  source{n_component1_sources + 1}_info: seed={seed}, n={n_component2}"
+        )
         if keep_val2:
             print(f"  (kept empty {VAL_DIR_2}/ and {VAL_JSON_2})")
     finally:

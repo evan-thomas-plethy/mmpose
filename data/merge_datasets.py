@@ -13,7 +13,8 @@ Val: use ``--merge-val`` to produce a single merged ``val2017/`` and
 Source directories are only read; all output is written under --output. Existing output
 is removed only when --force is passed.
 
-Merged train JSON ``info`` contains only ``source1_info`` and ``source2_info``.
+Merged train JSON ``info`` contains ``source1_info`` … ``sourceN_info`` for every
+component source from both inputs (already-merged datasets keep their prior sources).
 """
 
 from __future__ import annotations
@@ -22,8 +23,11 @@ import argparse
 import json
 import os
 import shutil
+import re
 from copy import deepcopy
 from typing import Any, Dict, List
+
+_SOURCE_INFO_RE = re.compile(r"^source(\d+)_info$")
 
 
 TRAIN_JSON = "person_keypoints_train2017.json"
@@ -43,16 +47,44 @@ def _dump_json(path: str, data: Dict[str, Any]) -> None:
         f.write("\n")
 
 
+def collect_source_infos(info: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Return ordered source info dicts from a COCO ``info`` block.
+
+    If ``info`` already has ``sourceN_info`` keys, those are collected in numeric
+    order. Otherwise the whole ``info`` dict is treated as a single source.
+    """
+    if not info:
+        return []
+
+    numbered: List[tuple[int, Dict[str, Any]]] = []
+    for key, val in info.items():
+        m = _SOURCE_INFO_RE.match(key)
+        if m and isinstance(val, dict):
+            numbered.append((int(m.group(1)), deepcopy(val)))
+
+    if numbered:
+        numbered.sort(key=lambda x: x[0])
+        return [val for _, val in numbered]
+
+    return [deepcopy(info)]
+
+
+def build_merged_info(sources: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Pack source dicts into ``source1_info``, ``source2_info``, …"""
+    return {f"source{i}_info": src for i, src in enumerate(sources, start=1)}
+
+
 def merge_coco(a: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Any]:
     """Merge B into A's namespace: remap all image and annotation ids from B.
 
-    ``info`` is only ``source1_info`` / ``source2_info`` (each file's original ``info``).
+    ``info`` lists every component source from A then B as ``source1_info`` …
+    ``sourceN_info``.
     """
+    merged_sources = collect_source_infos(a.get("info", {})) + collect_source_infos(
+        b.get("info", {})
+    )
     out: Dict[str, Any] = {
-        "info": {
-            "source1_info": deepcopy(a.get("info", {})),
-            "source2_info": deepcopy(b.get("info", {})),
-        },
+        "info": build_merged_info(merged_sources),
         "licenses": deepcopy(a.get("licenses", [])),
         "categories": deepcopy(a.get("categories", b.get("categories", []))),
         "images": deepcopy(a.get("images", [])),
