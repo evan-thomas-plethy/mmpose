@@ -122,11 +122,8 @@ general_val_data_root = 'data/coco_general_val/'  # General exercise validation
 backend_args = dict(backend='local')
 
 # pipelines - optimized for primary domain
-# ChromaKeyAug: near-white bg -> random room still (see mmpose.datasets.transforms
-# .chroma_key_transform for hardcoded defaults). Runs on full frame after load.
 train_pipeline = [
     dict(type='LoadImage', backend_args=backend_args),
-    # dict(type='ChromaKeyAug'),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
     # RandomHalfBody removed - not suitable for sidelying full-body poses
@@ -164,7 +161,6 @@ val_pipeline = [
 # Stage 2 pipeline - even more conservative augmentation for refinement
 train_pipeline_stage2 = [
     dict(type='LoadImage', backend_args=backend_args),
-    # dict(type='ChromaKeyAug'),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
     # RandomHalfBody removed - not suitable for sidelying full-body poses
@@ -297,28 +293,28 @@ custom_hooks = [
         ),
     ),
     # General validation hook - monitors forgetting on diverse exercises
-    dict(
-        type='GeneralValHook',
-        interval=1,
-        priority=48,
-        dataloader=dict(
-            batch_size=16,
-            num_workers=4,
-            dataset=dict(
-                type=dataset_type,
-                data_root=general_val_data_root,
-                data_mode=data_mode,
-                ann_file='annotations/general_val.json',
-                data_prefix=dict(img='general_val/'),
-                test_mode=True,
-                pipeline=val_pipeline,
-            ),
-        ),
-        evaluator=dict(
-            type='CocoMetric',
-            ann_file=general_val_data_root + 'annotations/general_val.json',
-        ),
-    ),
+    # dict(
+    #     type='GeneralValHook',
+    #     interval=1,
+    #     priority=48,
+    #     dataloader=dict(
+    #         batch_size=16,
+    #         num_workers=4,
+    #         dataset=dict(
+    #             type=dataset_type,
+    #             data_root=general_val_data_root,
+    #             data_mode=data_mode,
+    #             ann_file='annotations/general_val.json',
+    #             data_prefix=dict(img='general_val/'),
+    #             test_mode=True,
+    #             pipeline=val_pipeline,
+    #         ),
+    #     ),
+    #     evaluator=dict(
+    #         type='CocoMetric',
+    #         ann_file=general_val_data_root + 'annotations/general_val.json',
+    #     ),
+    # ),
     # # Head-only extended LR warmup (default 500 iters = global LinearLR).
     # dict(
     #     type='HeadWarmupHook',

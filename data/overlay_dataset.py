@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Overlay COCO keypoint annotations on images from a dataset directory.
+Overlay COCO keypoint annotations on images from a dataset directory and write a video.
 
 Usage:
     python overlay_dataset.py Heel_Slides/v1/frames Heel_Slides/v1/HeelSlides_V1.json --max-images 50 --fps 15
-    python overlay_dataset.py Heel_Slides/v1/frames Heel_Slides/v1/HeelSlides_V1.json --output-dir ./overlay_output
+    python overlay_dataset.py Heel_Slides/v1/frames Heel_Slides/v1/HeelSlides_V1.json --output ./overlay.mp4
 """
 
 import argparse
@@ -12,7 +12,6 @@ import json
 import re
 import cv2
 import numpy as np
-import shutil
 from pathlib import Path
 from collections import defaultdict
 
@@ -187,64 +186,9 @@ def draw_video_label(image, label: str):
     return image
 
 
-def clear_output_directory(output_dir):
-    """Clear all files in the output directory."""
-    if output_dir.exists():
-        print(f"Clearing output directory: {output_dir}")
-        for item in output_dir.iterdir():
-            if item.is_file():
-                item.unlink()
-            elif item.is_dir():
-                shutil.rmtree(item)
-        print("✓ Output directory cleared")
-
-
-def create_video_from_images(images_dir, fps=10, output_path=None):
-    """Create a video from all annotated images."""
-    if output_path is None:
-        output_path = images_dir / "result.mp4"
-    
-    image_files = sorted(images_dir.glob("*_overlay.jpg"))
-    
-    if not image_files:
-        print("No annotated images found to create video")
-        return
-    
-    print(f"Found {len(image_files)} images for video")
-    
-    # Find max dimensions
-    max_width, max_height = 0, 0
-    for image_file in image_files:
-        img = cv2.imread(str(image_file))
-        if img is not None:
-            h, w = img.shape[:2]
-            max_width = max(max_width, w)
-            max_height = max(max_height, h)
-    
-    # Round to nearest 16 for codec compatibility
-    target_width = ((max_width + 15) // 16) * 16
-    target_height = ((max_height + 15) // 16) * 16
-    
-    print(f"Video dimensions: {target_width}x{target_height}")
-    
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    video_writer = cv2.VideoWriter(str(output_path), fourcc, fps, (target_width, target_height))
-    
-    if not video_writer.isOpened():
-        print("Could not open video writer")
-        return
-    
-    for i, image_file in enumerate(image_files):
-        if (i + 1) % 50 == 0:
-            print(f"Adding frame {i+1}/{len(image_files)}")
-        
-        image = cv2.imread(str(image_file))
-        if image is not None:
-            resized = cv2.resize(image, (target_width, target_height))
-            video_writer.write(resized)
-    
-    video_writer.release()
-    print(f"✓ Video saved to: {output_path}")
+def codec_size(width, height):
+    """Round dimensions up to a multiple of 16 for codec compatibility."""
+    return ((width + 15) // 16) * 16, ((height + 15) // 16) * 16
 
 
 def overlay_dataset(
@@ -263,8 +207,8 @@ def overlay_dataset(
     Args:
         frames_dir: Directory containing frame images
         ann_file: Path to COCO annotation JSON file
-        output_dir: Output directory for annotated images (default: ./)
-        output_video: Output video path (optional)
+        output_dir: Directory for the output video when output_video is unset
+        output_video: Output video path (default: <output_dir>/overlay.mp4)
         max_images: Maximum number of images to process (None for all)
         draw_bbox_flag: Whether to draw bounding boxes
         draw_skeleton_flag: Whether to draw skeleton connections
@@ -272,28 +216,25 @@ def overlay_dataset(
     """
     frames_dir = Path(frames_dir)
     ann_file = Path(ann_file)
-    
-    if output_dir is None:
-        output_dir = Path(".")
+
+    if output_video:
+        video_path = Path(output_video)
     else:
-        output_dir = Path(output_dir)
-    
+        output_dir = Path(output_dir) if output_dir else Path(".")
+        video_path = output_dir / "overlay.mp4"
+
     print(f"Frames directory: {frames_dir}")
     print(f"Annotation file: {ann_file}")
-    print(f"Output directory: {output_dir}")
-    
+    print(f"Output video: {video_path}")
+
     # Validate paths
     if not ann_file.exists():
         print(f"Error: Annotation file not found: {ann_file}")
         return
-    
+
     if not frames_dir.exists():
         print(f"Error: Frames directory not found: {frames_dir}")
         return
-    
-    # Clear and create output directory
-    clear_output_directory(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
     
     # Load annotations
     print(f"\nLoading annotations...")
@@ -332,60 +273,77 @@ def overlay_dataset(
         image_ids = image_ids[:max_images]
     
     print(f"\nProcessing {len(image_ids)} images with annotations...")
-    
-    processed = 0
-    for i, image_id in enumerate(image_ids):
-        if (i + 1) % 50 == 0:
-            print(f"Processing {i+1}/{len(image_ids)}...")
-        
+
+    max_width, max_height = 0, 0
+    for image_id in image_ids:
         img_info = images_dict.get(image_id)
         if not img_info:
             continue
-        
-        img_path = frames_dir / img_info['file_name']
-        if not img_path.exists():
-            # Try without path prefix if file_name includes subdirectory
-            img_path = frames_dir / Path(img_info['file_name']).name
-            if not img_path.exists():
+        max_width = max(max_width, int(img_info.get('width', 0)))
+        max_height = max(max_height, int(img_info.get('height', 0)))
+
+    if max_width == 0 or max_height == 0:
+        print("Error: Could not determine video size from annotations")
+        return
+
+    target_width, target_height = codec_size(max_width, max_height)
+    print(f"Video dimensions: {target_width}x{target_height}")
+
+    video_path.parent.mkdir(parents=True, exist_ok=True)
+    video_writer = cv2.VideoWriter(
+        str(video_path),
+        cv2.VideoWriter_fourcc(*'mp4v'),
+        fps,
+        (target_width, target_height),
+    )
+    if not video_writer.isOpened():
+        print(f"Error: Could not open video writer: {video_path}")
+        return
+
+    processed = 0
+    try:
+        for i, image_id in enumerate(image_ids):
+            if (i + 1) % 50 == 0:
+                print(f"Processing {i+1}/{len(image_ids)}...")
+
+            img_info = images_dict.get(image_id)
+            if not img_info:
                 continue
-        
-        # Load image
-        image = cv2.imread(str(img_path))
-        if image is None:
-            continue
-        
-        # Draw all annotations for this image
-        for ann in anns_by_image[image_id]:
-            # Draw bounding box
-            if draw_bbox_flag and 'bbox' in ann:
-                image = draw_bbox(image, ann['bbox'], color=(100, 100, 100))
-            
-            # Draw skeleton first (so keypoints are on top)
-            if draw_skeleton_flag and 'keypoints' in ann:
-                image = draw_skeleton(image, ann['keypoints'])
-            
-            # Draw keypoints
-            if 'keypoints' in ann:
-                image = draw_keypoints(image, ann['keypoints'])
 
-        video_label = video_name_from_file_name(img_info['file_name'])
-        if video_label:
-            image = draw_video_label(image, video_label)
+            img_path = frames_dir / img_info['file_name']
+            if not img_path.exists():
+                # Try without path prefix if file_name includes subdirectory
+                img_path = frames_dir / Path(img_info['file_name']).name
+                if not img_path.exists():
+                    continue
 
-        # Save annotated image
-        output_filename = f"{Path(img_info['file_name']).stem}_overlay.jpg"
-        output_path = output_dir / output_filename
-        cv2.imwrite(str(output_path), image)
-        processed += 1
-    
-    print(f"\n✓ Processed {processed} images")
-    print(f"✓ Annotated images saved to: {output_dir}")
-    
-    # Create video
-    if output_video or processed > 0:
-        print("\nCreating video...")
-        video_path = Path(output_video) if output_video else output_dir / "overlay.mp4"
-        create_video_from_images(output_dir, fps=fps, output_path=video_path)
+            image = cv2.imread(str(img_path))
+            if image is None:
+                continue
+
+            for ann in anns_by_image[image_id]:
+                if draw_bbox_flag and 'bbox' in ann:
+                    image = draw_bbox(image, ann['bbox'], color=(100, 100, 100))
+
+                if draw_skeleton_flag and 'keypoints' in ann:
+                    image = draw_skeleton(image, ann['keypoints'])
+
+                if 'keypoints' in ann:
+                    image = draw_keypoints(image, ann['keypoints'])
+
+            video_label = video_name_from_file_name(img_info['file_name'])
+            if video_label:
+                image = draw_video_label(image, video_label)
+
+            if image.shape[1] != target_width or image.shape[0] != target_height:
+                image = cv2.resize(image, (target_width, target_height))
+            video_writer.write(image)
+            processed += 1
+    finally:
+        video_writer.release()
+
+    print(f"\n✓ Wrote {processed} frames")
+    print(f"✓ Video saved to: {video_path}")
 
 
 def main():
@@ -402,7 +360,7 @@ def main():
     )
     parser.add_argument(
         '--output-dir', type=str, default=None,
-        help='Output directory for annotated images (default: ./)',
+        help='Directory for overlay.mp4 when --output is not set (default: ./)',
     )
     parser.add_argument(
         '--output', type=str, default=None,
