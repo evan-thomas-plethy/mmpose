@@ -293,28 +293,28 @@ custom_hooks = [
         ),
     ),
     # General validation hook - monitors forgetting on diverse exercises
-    # dict(
-    #     type='GeneralValHook',
-    #     interval=1,
-    #     priority=48,
-    #     dataloader=dict(
-    #         batch_size=16,
-    #         num_workers=4,
-    #         dataset=dict(
-    #             type=dataset_type,
-    #             data_root=general_val_data_root,
-    #             data_mode=data_mode,
-    #             ann_file='annotations/general_val.json',
-    #             data_prefix=dict(img='general_val/'),
-    #             test_mode=True,
-    #             pipeline=val_pipeline,
-    #         ),
-    #     ),
-    #     evaluator=dict(
-    #         type='CocoMetric',
-    #         ann_file=general_val_data_root + 'annotations/general_val.json',
-    #     ),
-    # ),
+    dict(
+        type='GeneralValHook',
+        interval=1,
+        priority=48,
+        dataloader=dict(
+            batch_size=16,
+            num_workers=4,
+            dataset=dict(
+                type=dataset_type,
+                data_root=general_val_data_root,
+                data_mode=data_mode,
+                ann_file='annotations/general_val.json',
+                data_prefix=dict(img='general_val/'),
+                test_mode=True,
+                pipeline=val_pipeline,
+            ),
+        ),
+        evaluator=dict(
+            type='CocoMetric',
+            ann_file=general_val_data_root + 'annotations/general_val.json',
+        ),
+    ),
     # # Head-only extended LR warmup (default 500 iters = global LinearLR).
     # dict(
     #     type='HeadWarmupHook',
