@@ -112,6 +112,7 @@ data/**
 !data/
 !data/*.py
 !data/*.yaml
+!data/*.md
 !data/augmentations/
 !data/augmentations/*.py
 !data/augmentations/*.yaml
