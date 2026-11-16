@@ -75,7 +75,7 @@ def parse_args():
     parser.add_argument(
         '--mlflow-tracking-uri',
         type=str,
-        default='http://52.41.68.196:5000',
+        default=None,
         help='MLflow tracking server URI. If provided, enables MLflow logging.')
     parser.add_argument(
         '--mlflow-experiment-name',
@@ -217,8 +217,96 @@ def add_mlflow_backend(cfg, args):
     return cfg
 
 
+def _is_main_process(args):
+    return args.local_rank == 0 and os.environ.get('RANK', '0') == '0'
+
+
+def _register_wandb_metric_backend():
+    """Register a vis backend that forwards scalars to the active WandB run."""
+    from mmengine.registry import VISBACKENDS
+    from mmengine.visualization.vis_backend import BaseVisBackend
+
+    if VISBACKENDS.get('WandbMetricBackend') is not None:
+        return
+
+    @VISBACKENDS.register_module(name='WandbMetricBackend')
+    class WandbMetricBackend(BaseVisBackend):
+        def _init_env(self):
+            import wandb
+            self._wandb = wandb
+
+        @property
+        def experiment(self):
+            if not self._env_initialized:
+                self._init_env()
+                self._env_initialized = True
+            return self._wandb
+
+        def add_scalar(self, name, value, step=0, **kwargs):
+            import wandb
+            if wandb.run is not None:
+                wandb.log({name: value})
+
+        def add_scalars(self, scalar_dict, step=0, file_path=None, **kwargs):
+            import wandb
+            if wandb.run is not None:
+                wandb.log(scalar_dict)
+
+        def close(self):
+            import wandb
+            if wandb.run is not None:
+                wandb.finish()
+
+
+def add_wandb_logging(cfg, args):
+    """Start a metric-only WandB run and keep the previous work_dir layout."""
+    if args.mlflow_experiment_name is None:
+        exp_name = osp.splitext(osp.basename(args.config))[0]
+    else:
+        exp_name = args.mlflow_experiment_name
+
+    if args.mlflow_run_name is None:
+        run_name = datetime.now().strftime("%Y%m%d_%H%M%S")
+    else:
+        run_name = args.mlflow_run_name
+
+    # Previously set inside add_mlflow_backend.
+    cfg.work_dir = osp.join('./work_dirs', exp_name, run_name)
+
+    if not _is_main_process(args):
+        return cfg
+
+    import wandb
+
+    wandb.init(
+        project="rtmpose-finetune",
+        config=cfg.to_dict(),
+        save_code=False,
+        settings=wandb.Settings(
+            console="off",
+            disable_code=True,
+            disable_git=True,
+            x_disable_stats=True,
+            x_disable_meta=True,
+        ),
+    )
+
+    _register_wandb_metric_backend()
+    if not hasattr(cfg, 'vis_backends') or cfg.vis_backends is None:
+        cfg.vis_backends = [dict(type='LocalVisBackend')]
+    if not any(backend.get('type') == 'WandbMetricBackend'
+               for backend in cfg.vis_backends):
+        cfg.vis_backends.append(dict(type='WandbMetricBackend'))
+    if hasattr(cfg, 'visualizer') and cfg.visualizer is not None:
+        cfg.visualizer.vis_backends = cfg.vis_backends
+
+    print(f"WandB metric logging enabled: project=rtmpose-finetune work_dir={cfg.work_dir}")
+    return cfg
+
+
 def main():
     args = parse_args()
+    args.mlflow_tracking_uri = None  # MLflow disabled; metrics go to WandB
 
     # load config
     cfg = Config.fromfile(args.config)
@@ -280,6 +368,8 @@ def main():
                         break
         except Exception as e:
             print(f"Warning: Could not add dataset info to config: {e}")
+
+    cfg = add_wandb_logging(cfg, args)
 
     # build the runner from config
     runner = Runner.from_cfg(cfg)

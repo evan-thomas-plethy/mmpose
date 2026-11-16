@@ -64,7 +64,7 @@ def parse_args():
     parser.add_argument(
         '--mlflow-tracking-uri',
         type=str,
-        default='http://52.41.68.196:5000',
+        default=None,
         help='MLflow tracking server URI. If provided, enables MLflow logging.')
     parser.add_argument(
         '--mlflow-experiment-name',
@@ -386,6 +386,7 @@ def evaluate_on_dataset(cfg, checkpoint, data_root, ann_file, img_prefix,
 
 def main():
     args = parse_args()
+    args.mlflow_tracking_uri = None  # MLflow disabled
 
     # load config
     cfg = Config.fromfile(args.config)
