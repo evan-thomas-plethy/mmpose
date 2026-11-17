@@ -1,6 +1,8 @@
 # =============================================================================
 # Six App Vids + GBE splits. Annotations live in each dataset directory.
 # Frames for train and val are read from data/App_Vids_v1_GBE_v1_frames/.
+# Mirrored val images live in each dataset's val2017_mirrored/.
+# General val is data/webex-general-val/.
 # =============================================================================
 # Datasets:
 #   App_Vids_v2_GBE_v4_val10
@@ -31,6 +33,13 @@ experiments:
       test_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10/"
       test_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_frames/"
       test_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10/"
+      custom_hooks.2.dataloader.dataset.data_prefix.img: "val2017_mirrored/"
+      custom_hooks.2.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/webex-general-val/"
+      custom_hooks.3.dataloader.dataset.ann_file: "annotations/general_val.json"
+      custom_hooks.3.dataloader.dataset.data_prefix.img: "general_val/"
+      custom_hooks.3.evaluator.ann_file: "data/webex-general-val/annotations/general_val.json"
 
   - name: "app_vids_v2_gbe_v5_val10"
     overrides:
@@ -42,6 +51,13 @@ experiments:
       test_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v5_val10/"
       test_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_frames/"
       test_evaluator.ann_file: "data/App_Vids_v2_GBE_v5_val10/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v5_val10/"
+      custom_hooks.2.dataloader.dataset.data_prefix.img: "val2017_mirrored/"
+      custom_hooks.2.evaluator.ann_file: "data/App_Vids_v2_GBE_v5_val10/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/webex-general-val/"
+      custom_hooks.3.dataloader.dataset.ann_file: "annotations/general_val.json"
+      custom_hooks.3.dataloader.dataset.data_prefix.img: "general_val/"
+      custom_hooks.3.evaluator.ann_file: "data/webex-general-val/annotations/general_val.json"
 
   - name: "app_vids_v3_gbe_v5_val10"
     overrides:
@@ -53,6 +69,13 @@ experiments:
       test_dataloader.dataset.data_root: "data/App_Vids_v3_GBE_v5_val10/"
       test_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_frames/"
       test_evaluator.ann_file: "data/App_Vids_v3_GBE_v5_val10/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/App_Vids_v3_GBE_v5_val10/"
+      custom_hooks.2.dataloader.dataset.data_prefix.img: "val2017_mirrored/"
+      custom_hooks.2.evaluator.ann_file: "data/App_Vids_v3_GBE_v5_val10/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/webex-general-val/"
+      custom_hooks.3.dataloader.dataset.ann_file: "annotations/general_val.json"
+      custom_hooks.3.dataloader.dataset.data_prefix.img: "general_val/"
+      custom_hooks.3.evaluator.ann_file: "data/webex-general-val/annotations/general_val.json"
 
   - name: "app_vids_v2_gbe_v4_val10_subject25"
     overrides:
@@ -64,6 +87,13 @@ experiments:
       test_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25/"
       test_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_frames/"
       test_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25/"
+      custom_hooks.2.dataloader.dataset.data_prefix.img: "val2017_mirrored/"
+      custom_hooks.2.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/webex-general-val/"
+      custom_hooks.3.dataloader.dataset.ann_file: "annotations/general_val.json"
+      custom_hooks.3.dataloader.dataset.data_prefix.img: "general_val/"
+      custom_hooks.3.evaluator.ann_file: "data/webex-general-val/annotations/general_val.json"
 
   - name: "app_vids_v2_gbe_v5_val10_subject25"
     overrides:
@@ -75,6 +105,13 @@ experiments:
       test_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v5_val10_subject25/"
       test_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_frames/"
       test_evaluator.ann_file: "data/App_Vids_v2_GBE_v5_val10_subject25/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v5_val10_subject25/"
+      custom_hooks.2.dataloader.dataset.data_prefix.img: "val2017_mirrored/"
+      custom_hooks.2.evaluator.ann_file: "data/App_Vids_v2_GBE_v5_val10_subject25/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/webex-general-val/"
+      custom_hooks.3.dataloader.dataset.ann_file: "annotations/general_val.json"
+      custom_hooks.3.dataloader.dataset.data_prefix.img: "general_val/"
+      custom_hooks.3.evaluator.ann_file: "data/webex-general-val/annotations/general_val.json"
 
   - name: "app_vids_v3_gbe_v5_val10_subject25"
     overrides:
@@ -86,3 +123,10 @@ experiments:
       test_dataloader.dataset.data_root: "data/App_Vids_v3_GBE_v5_val10_subject25/"
       test_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_frames/"
       test_evaluator.ann_file: "data/App_Vids_v3_GBE_v5_val10_subject25/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/App_Vids_v3_GBE_v5_val10_subject25/"
+      custom_hooks.2.dataloader.dataset.data_prefix.img: "val2017_mirrored/"
+      custom_hooks.2.evaluator.ann_file: "data/App_Vids_v3_GBE_v5_val10_subject25/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/webex-general-val/"
+      custom_hooks.3.dataloader.dataset.ann_file: "annotations/general_val.json"
+      custom_hooks.3.dataloader.dataset.data_prefix.img: "general_val/"
+      custom_hooks.3.evaluator.ann_file: "data/webex-general-val/annotations/general_val.json"
