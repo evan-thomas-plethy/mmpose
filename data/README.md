@@ -8,13 +8,17 @@ Scripts for building, cleaning, and checking COCO-format pose datasets.
 
 **filter_images.py** — Copies into an output directory only the frames listed in a COCO annotations JSON.
 
-**filter_val_data.py** — Splits a target dataset into COCO train and val by video name, using the video prefixes in a reference val JSON. Frames from the same video stay in one split, and only the output directory is written.
+**filter_train_data.py** — Caps the subject with the most frames at 25% of a training COCO JSON by dropping one random video of that subject at a time, then counting again. Other subjects are not trimmed. It stops once that subject is at or under 25%, or when one more of their videos would put their share below the subject with the second-most frames. Subjects come from a `video_id,subject` CSV. `--require-videos` keeps those ids by exact match. If the cap cannot be met without dropping a required video, it prints that and still writes the output. Removed video ids are written to `train_videos_removed.txt` beside the output JSON. `--removed-txt` drops every frame of the videos in that file and does not run the subject cap. Both modes require the subjects CSV and print each subject's share of the remaining frames. A sibling `person_keypoints_val2017.json` is copied next to the output training JSON. The input is not modified. `info.config` records `max-subject-train-fraction` and `require-videos`.
+
+**filter_val_data.py** — Splits a target dataset into COCO train and val by video name, using the video prefixes in a reference val JSON. Every frame of those videos is removed from train. `--exact-val` copies that val JSON unchanged and still removes every frame of those videos from the target train JSON.
 
 **make_augmented_dataset.py** — Copies a COCO dataset to a new directory and runs `augment.py` there. Supports train-only augmentation and a custom augmentations YAML.
 
 **match_anns.py** — Writes a filtered copy of a base annotations JSON, keeping only image ids that appear in a reference JSON.
 
 **merge_datasets.py** — Merges two COCO pose trees into a new output directory. Train is always combined; val is either merged or kept as `val2017` from the first dataset and `val2017_2` from the second.
+
+**merge_jsons.py** — Merges two COCO JSON files into one new JSON. Ids from the first file are kept, and image and annotation ids from the second file are remapped. Categories come from the first file. `info` is stored as `source1_info`, `source2_info`, and so on. The script stops if the same frame filename appears in both files. Neither input is modified.
 
 **merge_with_seed.py** — Merges a full COCO dataset with a seeded sample of a second dataset (COCO layout or a flat JSON plus `frames/`). Output val is exactly the first dataset's val, including mirrored val when that dataset has it.
 
@@ -36,6 +40,6 @@ Scripts for building, cleaning, and checking COCO-format pose datasets.
 
 **single_frame_overlay.py** — Picks one random frame per video (name taken from the text before `_frame_`) and stitches those frames into one video, with the video name drawn on each frame.
 
-**split_dataset.py** — Splits a `frames/` plus annotation JSON directory into a COCO train/val tree. All frames from the same video stay in one split.
+**split_dataset.py** — Splits a `frames/` plus annotation JSON directory into a COCO train/val tree. All frames from the same video stay in one split. `--no-frames` writes only the train and val JSON files. With a subjects CSV and `--max-subject-val-fraction`, videos whose id is `{name}_{exercise}_{date}_{id}` and that share the name and date stay in one split; any other id is its own group. Named train-only subjects stay in train, and no subject can exceed that fraction of val. `--max-subject-train-fraction` drops individual videos of the over-limit subject at random. `--require-videos` keeps those ids by exact match. The flags used for the run are stored at `info.config` in both output JSON files.
 
 **train_val_leakage.py** — Reports video-id prefixes shared by two COCO annotation JSONs. A shared prefix means frames from the same video appear in both files.

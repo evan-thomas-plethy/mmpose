@@ -32,9 +32,13 @@ import shutil
 from typing import Any
 
 
+def image_basename(file_name: str) -> str:
+    return os.path.basename(str(file_name).replace("\\", "/"))
+
+
 def video_prefix_from_file_name(file_name: str) -> str:
     """Basename of file_name; prefix before ``_frame_`` when that substring exists."""
-    filename = os.path.basename(file_name.replace("\\", "/"))
+    filename = image_basename(file_name)
     if "_frame_" in filename:
         return filename.split("_frame_")[0]
     return filename
@@ -112,11 +116,90 @@ def _copy_images_for_split(
     return ok, missing
 
 
+def _prepare_output_dirs(out_abs: str) -> tuple[str, str, str, str, str]:
+    train_dir = os.path.join(out_abs, "train2017")
+    val_dir = os.path.join(out_abs, "val2017")
+    annotations_dir = os.path.join(out_abs, "annotations")
+    train_json = os.path.join(annotations_dir, "person_keypoints_train2017.json")
+    val_json = os.path.join(annotations_dir, "person_keypoints_val2017.json")
+    if os.path.exists(out_abs):
+        shutil.rmtree(out_abs)
+    os.makedirs(train_dir, exist_ok=True)
+    os.makedirs(val_dir, exist_ok=True)
+    os.makedirs(annotations_dir, exist_ok=True)
+    return train_dir, val_dir, annotations_dir, train_json, val_json
+
+
+def _split_exact_val(
+    ref_val_abs: str,
+    target_abs: str,
+    frames_abs: str,
+    out_abs: str,
+) -> None:
+    """Copy the reference val JSON unchanged and drop its videos from train."""
+    with open(ref_val_abs, "rb") as handle:
+        val_bytes = handle.read()
+    ref_data = json.loads(val_bytes)
+    with open(target_abs, encoding="utf-8") as handle:
+        target_data = json.load(handle)
+
+    val_prefixes = {
+        video_prefix_from_file_name(img["file_name"])
+        for img in ref_data.get("images", [])
+        if img.get("file_name")
+    }
+    train_images = []
+    removed_frames = 0
+    target_prefixes: set[str] = set()
+    for img in target_data.get("images", []):
+        file_name = img.get("file_name")
+        if not file_name:
+            continue
+        prefix = video_prefix_from_file_name(file_name)
+        target_prefixes.add(prefix)
+        if prefix in val_prefixes:
+            removed_frames += 1
+            continue
+        train_images.append(img)
+
+    missing = sorted(val_prefixes - target_prefixes)
+    print(f"\n📌 Exact val images copied: {len(ref_data.get('images', []))}")
+    print(
+        f"   Reference val videos: {len(val_prefixes)} | "
+        f"removed from target: {len(val_prefixes & target_prefixes)} "
+        f"({removed_frames} frames)"
+    )
+    if missing:
+        print(f"   ⚠️ Val videos not in the target: {len(missing)}")
+
+    train_dir, val_dir, _, train_json, val_json = _prepare_output_dirs(out_abs)
+    print("\n📁 Copying images...")
+    _copy_images_for_split(train_images, frames_abs, train_dir, "train2017")
+    _copy_images_for_split(ref_data.get("images", []), frames_abs, val_dir, "val2017")
+
+    train_payload = _build_split_payload(target_data, train_images)
+    with open(train_json, "w", encoding="utf-8") as handle:
+        json.dump(train_payload, handle, indent=4)
+        handle.write("\n")
+    with open(val_json, "wb") as handle:
+        handle.write(val_bytes)
+
+    print("\n📊 Split (target):")
+    print(
+        f"   Images: {len(target_data.get('images', []))} total → "
+        f"{len(train_images)} train, {len(ref_data.get('images', []))} val copied"
+    )
+    print(f"\n✅ Dataset saved to: {out_abs}")
+    print(f"   Train: {train_json}")
+    print(f"   Val:   {val_json}")
+
+
 def split_dataset_by_reference_val(
     ref_val_json: str,
     target_anns_json: str,
     frames_dir: str,
     output_dir: str,
+    exact_val: bool = False,
 ) -> None:
     ref_val_abs = os.path.abspath(ref_val_json)
     target_abs = os.path.abspath(target_anns_json)
@@ -134,6 +217,10 @@ def split_dataset_by_reference_val(
     print(f"📂 Target anns:   {target_abs}")
     print(f"📂 Frames:       {frames_abs}")
     print(f"📂 Output:       {out_abs}")
+
+    if exact_val:
+        _split_exact_val(ref_val_abs, target_abs, frames_abs, out_abs)
+        return
 
     val_prefixes = get_video_prefixes(ref_val_abs)
 
@@ -183,17 +270,7 @@ def split_dataset_by_reference_val(
     )
     print(f"   Annotations: {n_ann} total → {n_ann_train} train, {n_ann_val} val")
 
-    train_dir = os.path.join(out_abs, "train2017")
-    val_dir = os.path.join(out_abs, "val2017")
-    annotations_dir = os.path.join(out_abs, "annotations")
-    train_json = os.path.join(annotations_dir, "person_keypoints_train2017.json")
-    val_json = os.path.join(annotations_dir, "person_keypoints_val2017.json")
-
-    if os.path.exists(out_abs):
-        shutil.rmtree(out_abs)
-    os.makedirs(train_dir, exist_ok=True)
-    os.makedirs(val_dir, exist_ok=True)
-    os.makedirs(annotations_dir, exist_ok=True)
+    train_dir, val_dir, _, train_json, val_json = _prepare_output_dirs(out_abs)
 
     print("\n📁 Copying images...")
     _copy_images_for_split(train_images, frames_abs, train_dir, "train2017")
@@ -243,6 +320,14 @@ def main() -> None:
         required=True,
         help="Output COCO dataset root (train2017/, val2017/, annotations/)",
     )
+    parser.add_argument(
+        "--exact-val",
+        action="store_true",
+        help=(
+            "Copy --ref-val unchanged as the output val JSON. "
+            "Train drops every frame of those val videos."
+        ),
+    )
     args = parser.parse_args()
 
     split_dataset_by_reference_val(
@@ -250,6 +335,7 @@ def main() -> None:
         target_anns_json=args.target_anns,
         frames_dir=args.frames_dir,
         output_dir=args.output,
+        exact_val=args.exact_val,
     )
 
 
