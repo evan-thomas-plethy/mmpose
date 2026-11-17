@@ -42,33 +42,31 @@ def build_cfg_options(overrides: dict) -> str:
 def run_experiment(
     base_config: str,
     experiment: dict,
-    mlflow_config: dict,
+    experiment_name: str,
+    tracking_uri=None,
     dry_run: bool = False
 ) -> int:
     """Run a single experiment."""
     name = experiment['name']
     overrides = experiment.get('overrides', {})
-    
-    # Compute work_dir (same logic as train.py)
-    work_dir = f"work_dirs/{mlflow_config['experiment_name']}/{name}"
-    
-    # Build the command
+
+    work_dir = f"work_dirs/{experiment_name}/{name}"
+
     cmd_parts = [
-        sys.executable,  # Use current Python interpreter
+        sys.executable,
         "tools/train.py",
         base_config,
-        f"--mlflow-tracking-uri", mlflow_config['tracking_uri'],
-        f"--mlflow-experiment-name", mlflow_config['experiment_name'],
-        f"--mlflow-run-name", name,
+        "--mlflow-experiment-name", experiment_name,
+        "--mlflow-run-name", name,
     ]
-    
-    # Generate run description from overrides
-    if overrides:
-        run_description = "; ".join(f"{k}: {v}" for k, v in overrides.items())
-        cmd_parts.extend([
-            "--mlflow-run-description",
-            f'"Varied parameters: {run_description}"'
-        ])
+    if tracking_uri:
+        cmd_parts.extend(["--mlflow-tracking-uri", tracking_uri])
+        if overrides:
+            run_description = "; ".join(f"{k}: {v}" for k, v in overrides.items())
+            cmd_parts.extend([
+                "--mlflow-run-description",
+                f'"Varied parameters: {run_description}"'
+            ])
     
     # Add cfg-options if there are overrides
     if overrides:
@@ -113,15 +111,19 @@ def main():
     # Load configuration
     config = load_config(args.config)
     base_config = config['base_config']
-    mlflow_config = config['mlflow']
     experiments = config['experiments']
-    
+    mlflow_config = config.get('mlflow') or {}
+    experiment_name = config.get('experiment_name') or mlflow_config.get('experiment_name')
+    if not experiment_name:
+        print("\n❌ Sweep config needs experiment_name")
+        sys.exit(1)
+    tracking_uri = mlflow_config.get('tracking_uri')
+
     print("=" * 80)
     print("HYPERPARAMETER SWEEP")
     print("=" * 80)
     print(f"Base config: {base_config}")
-    print(f"MLflow tracking: {mlflow_config['tracking_uri']}")
-    print(f"MLflow experiment: {mlflow_config['experiment_name']}")
+    print(f"Experiment: {experiment_name}")
     print(f"Total experiments: {len(experiments)}")
     
     if args.experiment:
@@ -143,7 +145,8 @@ def main():
         returncode = run_experiment(
             base_config=base_config,
             experiment=experiment,
-            mlflow_config=mlflow_config,
+            experiment_name=experiment_name,
+            tracking_uri=tracking_uri,
             dry_run=args.dry_run
         )
         

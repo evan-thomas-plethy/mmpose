@@ -18,9 +18,7 @@
 
 base_config: "configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune.py"
 
-mlflow:
-  tracking_uri: "http://52.41.68.196:5000"
-  experiment_name: "rtmpose-m_single_model"
+experiment_name: "rtmpose-m_single_model"
 
 experiments:
   - name: "app_vids_v2_gbe_v4_val10"

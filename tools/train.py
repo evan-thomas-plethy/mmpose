@@ -280,6 +280,8 @@ def add_wandb_logging(cfg, args):
 
     wandb.init(
         project="rtmpose-finetune",
+        group=exp_name,
+        name=run_name,
         config=cfg.to_dict(),
         save_code=False,
         settings=wandb.Settings(
@@ -300,7 +302,11 @@ def add_wandb_logging(cfg, args):
     if hasattr(cfg, 'visualizer') and cfg.visualizer is not None:
         cfg.visualizer.vis_backends = cfg.vis_backends
 
-    print(f"WandB metric logging enabled: project=rtmpose-finetune work_dir={cfg.work_dir}")
+    print(
+        "WandB metric logging enabled: "
+        f"project=rtmpose-finetune group={exp_name} name={run_name} "
+        f"work_dir={cfg.work_dir}"
+    )
     return cfg
 
 
