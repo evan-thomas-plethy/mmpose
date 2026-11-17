@@ -279,7 +279,7 @@ def add_wandb_logging(cfg, args):
     import wandb
 
     wandb.init(
-        project="rtmpose-finetune",
+        project="rtmpose-m_finetune",
         config=cfg.to_dict(),
         save_code=False,
         settings=wandb.Settings(
