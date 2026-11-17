@@ -1,22 +1,21 @@
 _base_ = ['../../../_base_/default_runtime.py']
 
 # =============================================================================
-# Exercise Fine-tuning Configuration (50 Epochs)
+# Exercise Fine-tuning Configuration (30 Epochs)
 # =============================================================================
-# Extended training version for more thorough fine-tuning.
 
 # Load pretrained checkpoint for fine-tuning
 load_from = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth'
 
-# runtime - extended training
-max_epochs = 50
+# 30 epochs, validation every epoch
+max_epochs = 30
 stage2_num_epochs = 0  # Last X epochs use refined augmentation
-base_lr = 1e-4  # Conservative learning rate for fine-tuning
+base_lr = 1e-4  # Head learning rate. The backbone is frozen.
 
 train_cfg = dict(max_epochs=max_epochs, val_interval=1)
 randomness = dict(seed=21)
 
-# optimizer - optimized for fine-tuning with differential learning rates
+# optimizer
 optim_wrapper = dict(
     type='OptimWrapper',
     optimizer=dict(type='AdamW', lr=base_lr, weight_decay=0.05),
@@ -24,36 +23,36 @@ optim_wrapper = dict(
         norm_decay_mult=0,
         bias_decay_mult=0,
         bypass_duplicate=True,
-        custom_keys={
-            # 'backbone': dict(lr_mult=0.0),
-            'backbone.stem': dict(lr_mult=0.0),
-            'backbone.stage1': dict(lr_mult=0.0),
-            'backbone.stage2': dict(lr_mult=0.0),
-            'backbone.stage3': dict(lr_mult=0.0),
-            'backbone.stage4': dict(lr_mult=0.0),
-        }))
+        # custom_keys={
+        #     # 'backbone': dict(lr_mult=0.0),
+        #     'backbone.stem': dict(lr_mult=0.0),
+        #     'backbone.stage1': dict(lr_mult=0.0),
+        #     'backbone.stage2': dict(lr_mult=0.0),
+        #     'backbone.stage3': dict(lr_mult=0.0),
+        #     'backbone.stage4': dict(lr_mult=0.0),
+        # }
+        ))
 
-# learning rate schedule - adjusted for 50-epoch training
-# With 8000 samples, batch_size=32: ~250 iters/epoch
+# learning rate schedule - 30 epochs, both phases in epochs so they meet
+# on every dataset. Each phase is converted to iterations and updated
+# every step.
 param_scheduler = [
     dict(
         type='LinearLR',
         start_factor=1.0e-2,  # Start at 1e-6, warmup to 1e-4
-        by_epoch=False,
         begin=0,
-        end=500),  # ~2 epochs warmup
+        end=2,  # first two epochs; end is exclusive
+        by_epoch=True,
+        convert_to_iter_based=True),
     dict(
         type='CosineAnnealingLR',
-        eta_min=base_lr * 0.01,  # End at 1e-6 (lower for extended training)
-        begin=5,  # Start cosine annealing at epoch 5
+        eta_min=base_lr * 0.01,  # End at 1e-6
+        begin=2,  # starts where warmup ends
         end=max_epochs,
-        T_max=max_epochs - 5,
+        T_max=max_epochs - 2,
         by_epoch=True,
         convert_to_iter_based=True),
 ]
-
-# automatically scaling LR based on the actual training batch size
-auto_scale_lr = dict(base_batch_size=1024)
 
 # codec settings
 codec = dict(
@@ -83,10 +82,9 @@ model = dict(
         channel_attention=True,
         norm_cfg=dict(type='SyncBN'),
         act_cfg=dict(type='SiLU'),
-        frozen_stages=-1, # 0 freezes stem, 1 freezes stage1 + stem, ...
+        frozen_stages=4,  # stem + stage1–4: the whole CSPNeXt backbone; -1 for unfreezing all
         # Keep BatchNorm in eval mode during training to prevent running
-        # statistics from shifting to primary domain. Critical when using
-        # low backbone LR (lr_mult=0.1) or fully frozen backbone (lr_mult=0).
+        # statistics from shifting to primary domain.
         norm_eval=True),
     head=dict(
         type='RTMCCHead',
@@ -225,11 +223,11 @@ val_dataloader = dict(
 
 test_dataloader = val_dataloader
 
-# hooks - optimized for extended training
+# hooks for the 30-epoch run
 default_hooks = dict(
     checkpoint=dict(
         type='CheckpointHook',
-        interval=5,  # Save every 5 epochs (at 5, 10, 15, ..., 50)
+        interval=5,  # Save every 5 epochs (at 5, 10, 15, ..., 30)
         save_best='coco/AP',  # Save best based on primary domain validation
         rule='greater',
         max_keep_ckpts=5))
