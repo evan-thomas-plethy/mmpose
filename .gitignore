@@ -127,6 +127,7 @@ data/**
 *.json
 *.mp4
 work_dirs/
+wandb/
 docs/**/topics/
 docs/**/papers/*.md
 docs/**/datasets.md
