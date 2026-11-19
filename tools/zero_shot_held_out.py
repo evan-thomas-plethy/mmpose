@@ -7,6 +7,8 @@ val. The checkpoint defaults to load_from in the finetune config. Metrics are
 the COCO stats that hook logs, prefixed the same way (held_out_<person>/AP,
 AP .5, AP .75, AP_M, AP_L, AR, AR .5, AR .75, AR_M, AR_L).
 
+Results are printed and written to --out (default zero_shot_held_out.json).
+
 Example:
   python tools/zero_shot_held_out.py \\
     --sweep experiments/rtmpose-m_single_model/sweep_config_app_vids_gbe_v2.yaml
@@ -14,6 +16,8 @@ Example:
 
 import argparse
 import copy
+import json
+import os
 import os.path as osp
 import random
 
@@ -128,6 +132,23 @@ def score(model, loader, metric_prefix, metric_ann):
     return evaluator.evaluate(len(loader.dataset))
 
 
+def json_ready(value):
+    if isinstance(value, dict):
+        return {str(key): json_ready(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_ready(item) for item in value]
+    if hasattr(value, "item"):
+        return value.item()
+    return value
+
+
+def write_results(path, payload):
+    os.makedirs(osp.dirname(osp.abspath(path)) or ".", exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(json_ready(payload), handle, indent=2)
+        handle.write("\n")
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sweep", default=DEFAULT_SWEEP, help="Sweep yaml whose held-out hooks define the frames")
@@ -141,6 +162,11 @@ def parse_args():
         nargs="*",
         default=None,
         help="Optional metric prefixes to run, e.g. held_out_evan held_out_nina",
+    )
+    parser.add_argument(
+        "--out",
+        default="zero_shot_held_out.json",
+        help="JSON file for the metrics. Rewritten after each person.",
     )
     return parser.parse_args()
 
@@ -158,6 +184,13 @@ def main():
         set_seed(seed)
         print(f"seed: {seed}")
     print(f"checkpoint: {checkpoint}")
+    print(f"out: {args.out}")
+    payload = {
+        "sweep": osp.abspath(args.sweep),
+        "checkpoint": checkpoint,
+        "seed": seed,
+        "results": [],
+    }
 
     init_default_scope("mmpose")
     model = MODELS.build(cfg.model)
@@ -185,6 +218,14 @@ def main():
         )
         metrics = score(model, loader, job["metric_prefix"], job["metric_ann"])
         print(f"CustomDatasetHook[{job['metric_prefix']}] results: {metrics}")
+        payload["results"].append({
+            "metric_prefix": job["metric_prefix"],
+            "experiment": job["experiment"],
+            "images": len(loader.dataset),
+            "ann_file": job["metric_ann"],
+            "metrics": metrics,
+        })
+        write_results(args.out, payload)
 
 
 if __name__ == "__main__":
