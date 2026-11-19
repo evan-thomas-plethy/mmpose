@@ -123,7 +123,8 @@ def main():
     print("HYPERPARAMETER SWEEP")
     print("=" * 80)
     print(f"Base config: {base_config}")
-    print(f"Experiment: {experiment_name}")
+    print(f"Work dir: work_dirs/{experiment_name}/")
+    print(f"WandB project: {experiment_name}")
     print(f"Total experiments: {len(experiments)}")
     
     if args.experiment:

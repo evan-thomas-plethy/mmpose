@@ -116,6 +116,8 @@ dataset_type = 'CocoDataset'
 data_mode = 'topdown'
 data_root = 'data/coco/'
 general_val_data_root = 'data/coco_general_val/'  # General exercise validation
+custom_data_root = 'data/custom/'  # CustomDatasetHook
+custom_data_root_2 = 'data/custom_2/'  # Second CustomDatasetHook
 
 backend_args = dict(backend='local')
 
@@ -287,6 +289,54 @@ custom_hooks = [
         evaluator=dict(
             type='CocoMetric',
             ann_file=general_val_data_root + 'annotations/general_val.json',
+        ),
+    ),
+    # Extra dataset scored by CustomDatasetHook. Metrics are logged as custom/AP.
+    dict(
+        type='CustomDatasetHook',
+        metric_prefix='custom',
+        interval=1,
+        priority=48,
+        dataloader=dict(
+            batch_size=16,
+            num_workers=4,
+            dataset=dict(
+                type=dataset_type,
+                data_root=custom_data_root,
+                data_mode=data_mode,
+                ann_file='annotations/person_keypoints_val2017.json',
+                data_prefix=dict(img='custom/'),
+                test_mode=True,
+                pipeline=val_pipeline,
+            ),
+        ),
+        evaluator=dict(
+            type='CocoMetric',
+            ann_file=custom_data_root + 'annotations/person_keypoints_val2017.json',
+        ),
+    ),
+    # Second extra dataset. Metrics are logged as custom_2/AP.
+    dict(
+        type='CustomDatasetHook',
+        metric_prefix='custom_2',
+        interval=1,
+        priority=48,
+        dataloader=dict(
+            batch_size=16,
+            num_workers=4,
+            dataset=dict(
+                type=dataset_type,
+                data_root=custom_data_root_2,
+                data_mode=data_mode,
+                ann_file='annotations/person_keypoints_val2017.json',
+                data_prefix=dict(img='custom/'),
+                test_mode=True,
+                pipeline=val_pipeline,
+            ),
+        ),
+        evaluator=dict(
+            type='CocoMetric',
+            ann_file=custom_data_root_2 + 'annotations/person_keypoints_val2017.json',
         ),
     ),
     # # Head-only extended LR warmup (default 500 iters = global LinearLR).

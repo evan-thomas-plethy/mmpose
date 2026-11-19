@@ -279,8 +279,7 @@ def add_wandb_logging(cfg, args):
     import wandb
 
     wandb.init(
-        project="rtmpose-m_finetune",
-        group=exp_name,
+        project=exp_name,
         name=run_name,
         config=cfg.to_dict(),
         save_code=False,
@@ -304,7 +303,7 @@ def add_wandb_logging(cfg, args):
 
     print(
         "WandB metric logging enabled: "
-        f"project=rtmpose-finetune group={exp_name} name={run_name} "
+        f"project={exp_name} name={run_name} "
         f"work_dir={cfg.work_dir}"
     )
     return cfg

@@ -23,6 +23,7 @@
 base_config: "configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune.py"
 
 experiment_name: "rtmpose-m_single_model"
+# wandb project is rtmpose-m_finetune
 
 experiments:
   - name: "app_vids_v2_gbe_v4_val10"

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Drop individual videos from one subject in a training COCO JSON until that
-subject is no more than 25% of the remaining images, or one more video would
-put them below the subject with the second-most frames. The subject is the one
-with the most frames at the start. Other subjects are not trimmed.
+Drop individual videos from one subject in a training COCO JSON. Stop before
+a removal that would put that subject at or under 25% of the remaining
+images, or below the subject with the second-most frames. The subject is the
+one with the most frames at the start. Other subjects are not trimmed.
 
 Each pass drops one random video from that subject, then counts again.
 Required videos stay. The subject for each video comes from the subjects
@@ -22,9 +22,14 @@ Usage:
 
 The input file is not modified. When the training JSON sits beside
 person_keypoints_val2017.json, that validation file is copied next to the
-output training JSON. Removed video ids are written to train_videos_removed.txt
-beside the output JSON. Pass that file as --removed-txt to drop those videos
-only, with no subject cap.
+output training JSON. Removed video ids and the info.config block are written
+to videos_removed.json beside the output JSON. Pass that file as
+--removed-json to drop those videos only, with no subject cap. --frame-limit
+skips the share cap and, for every subject, drops videos until the next one
+would put that subject under the limit. The saved config is copied onto the
+output, except input, annotation, output, subjects-path,
+max-subject-train-fraction, min-fraction-train-max-subject, frame-limit, and
+require-videos, which follow this call.
 """
 
 from __future__ import annotations
@@ -44,7 +49,9 @@ from split_dataset import (
 )
 
 MAX_SUBJECT_FRACTION = 0.25
+SECOND_SUBJECT_RULE = "equal to second highest frame-count subject"
 VAL_JSON_NAME = "person_keypoints_val2017.json"
+REMOVED_JSON_NAME = "videos_removed.json"
 
 
 def video_prefix(file_name: str) -> str:
@@ -94,10 +101,10 @@ def build_videos(
 
 
 def cap_subjects(videos: list[dict], fraction: float) -> list[dict]:
-    """Drop videos from the single largest subject until that subject is within fraction.
+    """Drop videos from the single largest subject.
 
-    Also stop before a removal that would put that subject below the subject
-    with the second-most frames.
+    Stop before a removal that would put that subject at or under fraction, or
+    below the subject with the second-most frames.
     """
     kept = list(videos)
     totals = defaultdict(int)
@@ -138,6 +145,13 @@ def cap_subjects(videos: list[dict], fraction: float) -> list[dict]:
         second = max(others) if others else 0
         new_total = total - choice["frames"]
         new_subject = totals[subject] - choice["frames"]
+        if new_total > 0 and not over_fraction(new_subject, new_total, fraction):
+            print(
+                f"Stopping: dropping one more {subject} video would put them at "
+                f"{new_subject / new_total:.1%}, at or under {fraction:.0%}"
+            )
+            print(f"Dropped {dropped} videos")
+            return kept
         if new_total > 0 and new_subject / new_total < second / new_total:
             second_name = max(
                 (name for name in totals if name != subject),
@@ -156,12 +170,142 @@ def cap_subjects(videos: list[dict], fraction: float) -> list[dict]:
     return kept
 
 
-def write_removed_videos(output_path: str, video_ids: list[str]) -> str:
-    path = os.path.join(os.path.dirname(os.path.abspath(output_path)) or ".", "train_videos_removed.txt")
+def cap_subjects_to_frame_limit(videos: list[dict], frame_limit: int) -> list[dict]:
+    """Drop videos from every subject above frame_limit.
+
+    A video is removed only when that subject would still have at least
+    frame_limit frames afterward. Required videos stay.
+    """
+    kept = list(videos)
+    subjects = sorted({video["subject"] for video in kept})
+    dropped = 0
+    for subject in subjects:
+        frames = sum(video["frames"] for video in kept if video["subject"] == subject)
+        if frames <= frame_limit:
+            continue
+        print(f"Capping {subject} ({frames} frames)")
+        subject_dropped = 0
+        max_steps = len(videos) + 1
+        for _ in range(max_steps):
+            frames = sum(video["frames"] for video in kept if video["subject"] == subject)
+            if frames <= frame_limit:
+                break
+            removable = [
+                video
+                for video in kept
+                if video["subject"] == subject and not video["protected"]
+            ]
+            if not removable:
+                print(
+                    "Frame limit cannot be met without dropping required videos: "
+                    f"{subject} {frames} frames"
+                )
+                break
+            fits = [
+                video
+                for video in removable
+                if frames - video["frames"] >= frame_limit
+            ]
+            if not fits:
+                smallest = min(video["frames"] for video in removable)
+                print(
+                    f"Stopping: dropping one more {subject} video would put them at "
+                    f"{frames - smallest} frames, under {frame_limit}"
+                )
+                break
+            choice = random.choice(fits)
+            kept.remove(choice)
+            subject_dropped += 1
+            dropped += 1
+        print(f"Dropped {subject_dropped} {subject} videos")
+    print(f"Dropped {dropped} videos")
+    return kept
+
+
+def dataset_dir_for_train_json(train_json: str) -> str:
+    parent = os.path.dirname(os.path.abspath(train_json))
+    if os.path.basename(parent) == "annotations":
+        return os.path.dirname(parent)
+    return parent
+
+
+def annotation_name_for_dataset(dataset_dir: str) -> str:
+    name = os.path.basename(dataset_dir)
+    for suffix in ("_val10_subject25", "_subject25", "_val10"):
+        if name.endswith(suffix):
+            name = name[: -len(suffix)]
+            break
+    return f"{name}.json"
+
+
+def config_for_this_call(
+    base: dict | None,
+    train_json: str,
+    fraction: float,
+    require_videos: str | None,
+    subjects_path: str,
+    frame_limit: int | None,
+) -> dict:
+    """Reuse a saved config, then set the fields that belong to this dataset."""
+    config = dict(base) if isinstance(base, dict) else {}
+    dataset_dir = dataset_dir_for_train_json(train_json)
+    annotation = annotation_name_for_dataset(dataset_dir)
+    parent = os.path.dirname(dataset_dir)
+    if os.path.isfile(os.path.join(parent, annotation)):
+        config["input"] = parent
+    elif "input" not in config:
+        config["input"] = parent
+    config["annotation"] = annotation
+    config["output"] = dataset_dir
+    config["subjects-path"] = subjects_path
+    kept_require = config.pop("require-videos", None)
+    config.pop("max-subject-train-fraction", None)
+    config.pop("min-fraction-train-max-subject", None)
+    config.pop("frame-limit", None)
+    if frame_limit is None:
+        config["max-subject-train-fraction"] = SECOND_SUBJECT_RULE
+        config["min-fraction-train-max-subject"] = fraction
+    else:
+        config["frame-limit"] = frame_limit
+    if require_videos is not None:
+        config["require-videos"] = require_videos
+    elif kept_require is not None:
+        config["require-videos"] = kept_require
+    return config
+
+
+def write_removed_videos(output_path: str, video_ids: list[str], config: dict) -> str:
+    path = os.path.join(
+        os.path.dirname(os.path.abspath(output_path)) or ".",
+        REMOVED_JSON_NAME,
+    )
+    payload = {"config": config, "videos": video_ids}
     with open(path, "w", encoding="utf-8") as handle:
-        for video_id in video_ids:
-            handle.write(f"{video_id}\n")
+        json.dump(payload, handle, indent=4)
+        handle.write("\n")
     return path
+
+
+def load_removed_file(path: str) -> tuple[list[str], dict | None]:
+    """Read video ids and the info.config object from videos_removed.json."""
+    with open(path, encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict):
+        raise ValueError(f"{path} must be a JSON object with config and videos")
+    raw_videos = payload.get("videos")
+    if not isinstance(raw_videos, list) or not raw_videos:
+        raise ValueError(f"No video ids found in {path}")
+    video_ids = []
+    for entry in raw_videos:
+        video_id = str(entry).split(":", 1)[0].strip()
+        if video_id:
+            video_ids.append(video_id)
+    if not video_ids:
+        raise ValueError(f"No video ids found in {path}")
+    config = payload.get("config")
+    if config is not None and not isinstance(config, dict):
+        raise ValueError(f"Config in {path} must be a JSON object")
+    return video_ids, config
 
 
 def drop_listed_videos(videos: list[dict], remove_ids: set[str]) -> list[dict]:
@@ -206,7 +350,8 @@ def filter_train_json(
     fraction: float,
     require_videos: str | None,
     subjects_path: str,
-    removed_txt: str | None,
+    removed_json: str | None,
+    frame_limit: int | None,
 ) -> None:
     with open(train_json, encoding="utf-8") as handle:
         data = json.load(handle)
@@ -215,9 +360,11 @@ def filter_train_json(
     annotations = data.get("annotations", [])
     required_ids = set()
     video_subjects = load_video_subjects(subjects_path)
-    if removed_txt:
+    saved_config = None
+    if removed_json:
+        listed_removed, saved_config = load_removed_file(removed_json)
         videos = build_videos(images, required_ids, video_subjects)
-        remove_ids = set(load_id_list(removed_txt))
+        remove_ids = set(listed_removed)
         kept = drop_listed_videos(videos, remove_ids)
     else:
         if require_videos:
@@ -234,7 +381,10 @@ def filter_train_json(
             )
         videos = build_videos(images, required_ids, video_subjects)
         random.seed(42)
-        kept = cap_subjects(videos, fraction)
+        if frame_limit is None:
+            kept = cap_subjects(videos, fraction)
+        else:
+            kept = cap_subjects_to_frame_limit(videos, frame_limit)
     removed_ids = sorted(
         video["video_id"] for video in videos if video not in kept
     )
@@ -247,9 +397,17 @@ def filter_train_json(
     ]
     info = dict(filtered.get("info") or {})
     existing_config = info.get("config")
-    config = dict(existing_config) if isinstance(existing_config, dict) else {}
-    config["max-subject-train-fraction"] = fraction
-    config["require-videos"] = require_videos
+    if not isinstance(existing_config, dict):
+        existing_config = None
+    base_config = saved_config if saved_config is not None else existing_config
+    config = config_for_this_call(
+        base_config,
+        train_json,
+        fraction,
+        require_videos,
+        subjects_path,
+        frame_limit,
+    )
     info["config"] = config
     filtered["info"] = info
 
@@ -262,7 +420,7 @@ def filter_train_json(
     print(f"Output images: {len(filtered['images'])}")
     print(f"Output annotations: {len(filtered['annotations'])}")
     print(f"Wrote {output_path}")
-    removed_path = write_removed_videos(output_path, removed_ids)
+    removed_path = write_removed_videos(output_path, removed_ids, config)
     print(f"Wrote {removed_path}")
     print_subject_shares(kept)
 
@@ -277,7 +435,7 @@ def filter_train_json(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Cap the largest subject at 25% of a training COCO JSON by dropping that subject's videos"
+        description="Cap the largest subject in a training COCO JSON by dropping that subject's videos"
     )
     parser.add_argument(
         "--train-json",
@@ -295,6 +453,15 @@ def main() -> None:
         help="Output JSON path. Defaults to <train-json stem>_subject25.json",
     )
     parser.add_argument(
+        "--min-fraction-train-max-subject",
+        type=float,
+        default=MAX_SUBJECT_FRACTION,
+        help=(
+            "Stop before a removal that would put the largest subject at or "
+            "under this share of the remaining train images. Default: 0.25"
+        ),
+    )
+    parser.add_argument(
         "--require-videos",
         default=None,
         help=(
@@ -303,23 +470,45 @@ def main() -> None:
         ),
     )
     parser.add_argument(
-        "--removed-txt",
+        "--removed-json",
         default=None,
         help=(
-            "Text file of video ids to remove. When set, those videos are "
-            "dropped and the subject cap is not run. A line may be video_id "
-            "or video_id: date"
+            "videos_removed.json from a previous run. Those videos are "
+            "dropped and the subject cap is not run. Its config object is "
+            "copied onto the output, with this dataset's annotation, output, "
+            "and related paths filled in."
+        ),
+    )
+    parser.add_argument(
+        "--frame-limit",
+        type=int,
+        default=None,
+        help=(
+            "For every subject, drop videos until the next one would put that "
+            "subject under this many frames. Skips the share cap."
         ),
     )
     args = parser.parse_args()
+    if args.frame_limit is not None and args.removed_json:
+        raise SystemExit("--frame-limit cannot be combined with --removed-json")
+    if args.frame_limit is not None and args.frame_limit < 1:
+        raise SystemExit(
+            f"--frame-limit must be a positive integer, got {args.frame_limit}"
+        )
+    if args.frame_limit is None and not 0 < args.min_fraction_train_max_subject < 1:
+        raise SystemExit(
+            "--min-fraction-train-max-subject must be between 0 and 1, "
+            f"got {args.min_fraction_train_max_subject}"
+        )
     output_path = args.output or default_output_path(args.train_json)
     filter_train_json(
         args.train_json,
         output_path,
-        MAX_SUBJECT_FRACTION,
+        args.min_fraction_train_max_subject,
         args.require_videos,
         args.subjects_path,
-        args.removed_txt,
+        args.removed_json,
+        args.frame_limit,
     )
 
 
