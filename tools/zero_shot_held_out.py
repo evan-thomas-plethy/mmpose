@@ -8,6 +8,8 @@ the COCO stats that hook logs, prefixed the same way (held_out_<person>/AP,
 AP .5, AP .75, AP_M, AP_L, AR, AR .5, AR .75, AR_M, AR_L).
 
 Results are printed and written to --out (default zero_shot_held_out.json).
+Held-out AP is also written into --comparison (default zero_shot_comparison.txt).
+Each line there is ``held_out_<name> AP: finetune last Y, pretrain Z``.
 
 Example:
   python tools/zero_shot_held_out.py \\
@@ -19,9 +21,8 @@ import copy
 import json
 import os
 import os.path as osp
-import random
+import re
 
-import numpy as np
 import torch
 import yaml
 from mmengine.config import Config
@@ -41,12 +42,20 @@ DEFAULT_SWEEP = (
 )
 
 
-def set_seed(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
+def resolve_metric_ann(metric_ann, data_root):
+    """Return an absolute annotation path.
+
+    Sweep configs set ``evaluator.ann_file`` to a path from the repo root, which
+    already includes ``data_root``. A path that is only relative to ``data_root``
+    is still joined.
+    """
+    if osp.isabs(metric_ann):
+        return osp.abspath(metric_ann)
+    root = osp.normpath(data_root)
+    ann = osp.normpath(metric_ann)
+    if ann == root or ann.startswith(root + os.sep):
+        return osp.abspath(ann)
+    return osp.abspath(osp.join(data_root, metric_ann))
 
 
 def held_out_jobs(cfg, experiments):
@@ -82,9 +91,7 @@ def held_out_jobs(cfg, experiments):
             metric_ann = overrides.get(
                 f"{prefix}.evaluator.ann_file", hook.evaluator.ann_file
             )
-            if not osp.isabs(metric_ann):
-                metric_ann = osp.join(data_root, metric_ann)
-            metric_ann = osp.abspath(metric_ann)
+            metric_ann = resolve_metric_ann(metric_ann, data_root)
             if metric_ann in seen:
                 continue
             seen.add(metric_ann)
@@ -149,6 +156,60 @@ def write_results(path, payload):
         handle.write("\n")
 
 
+COMPARISON_LINE = re.compile(
+    r"^(?:held_out_)?(?P<person>\w+?)(?:\s+AP)?\s*:\s*"
+    r"(?:finetune last\s+)?(?P<last>[-+0-9.eE]+)"
+    r"(?:\s*,\s*(?:pretrain\s+)?(?P<pretrain>[-+0-9.eE]+))?\s*$"
+)
+
+
+def load_comparison(path):
+    """Rows of finetune-last AP, keyed by person name."""
+    rows = []
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            stripped = line.strip()
+            if not stripped:
+                rows.append(None)
+                continue
+            match = COMPARISON_LINE.match(stripped)
+            if not match:
+                raise SystemExit(f"Could not read comparison line: {stripped}")
+            rows.append(match.groupdict())
+    return rows
+
+
+def format_comparison(row):
+    line = f"held_out_{row['person']} AP: finetune last {row['last']}"
+    if row.get("pretrain"):
+        line += f", pretrain {row['pretrain']}"
+    return line
+
+
+def update_comparison(path, metric_prefix, metrics):
+    """Fill pretrain AP for this person. Other lines keep their finetune scores."""
+    if not path or not osp.isfile(path):
+        return None
+    person = metric_prefix[len("held_out_"):] if metric_prefix.startswith("held_out_") else metric_prefix
+    ap = metrics.get(f"{metric_prefix}/AP")
+    if ap is None:
+        return None
+    pretrain = f"{float(ap):.3f}"
+    rows = load_comparison(path)
+    matched = False
+    for row in rows:
+        if row and row["person"] == person:
+            row["pretrain"] = pretrain
+            matched = True
+    if not matched:
+        print(f"{metric_prefix} is not in {path}")
+        return None
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join("" if row is None else format_comparison(row) for row in rows))
+        handle.write("\n")
+    return pretrain
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sweep", default=DEFAULT_SWEEP, help="Sweep yaml whose held-out hooks define the frames")
@@ -168,6 +229,11 @@ def parse_args():
         default="zero_shot_held_out.json",
         help="JSON file for the metrics. Rewritten after each person.",
     )
+    parser.add_argument(
+        "--comparison",
+        default="zero_shot_comparison.txt",
+        help="Lines of 'held_out_<name> AP: finetune last Y, pretrain Z'. Pretrain AP is filled in place.",
+    )
     return parser.parse_args()
 
 
@@ -179,16 +245,11 @@ def main():
     checkpoint = args.checkpoint or cfg.load_from
     if not checkpoint:
         raise SystemExit("Pass --checkpoint or set load_from in the config")
-    seed = cfg.get("randomness", {}).get("seed", None)
-    if seed is not None:
-        set_seed(seed)
-        print(f"seed: {seed}")
     print(f"checkpoint: {checkpoint}")
     print(f"out: {args.out}")
     payload = {
         "sweep": osp.abspath(args.sweep),
         "checkpoint": checkpoint,
-        "seed": seed,
         "results": [],
     }
 
@@ -218,6 +279,10 @@ def main():
         )
         metrics = score(model, loader, job["metric_prefix"], job["metric_ann"])
         print(f"CustomDatasetHook[{job['metric_prefix']}] results: {metrics}")
+        pretrain = update_comparison(args.comparison, job["metric_prefix"], metrics)
+        if pretrain is not None:
+            person = job["metric_prefix"].removeprefix("held_out_")
+            print(f"held_out_{person} AP pretrain {pretrain} -> {args.comparison}")
         payload["results"].append({
             "metric_prefix": job["metric_prefix"],
             "experiment": job["experiment"],
