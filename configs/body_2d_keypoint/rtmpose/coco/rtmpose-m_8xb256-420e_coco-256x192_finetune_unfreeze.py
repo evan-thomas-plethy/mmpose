@@ -31,37 +31,41 @@ _base_ = ['./rtmpose-m_8xb256-420e_coco-256x192_finetune.py']
 #    weight decay - which a blanket custom_keys={'backbone': ...} does not do -
 #    and skips frozen params entirely.
 
+max_epochs = 30
+base_lr = 1e-4
+
 optim_wrapper = dict(
     # _delete_ drops the inherited paramwise_cfg (custom_keys / norm_decay_mult /
     # bias_decay_mult); weight-decay handling is done inside the constructor.
     _delete_=True,
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=1e-4, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=base_lr, weight_decay=0.05),
     constructor='CSPNeXtLayerDecayOptimWrapperConstructor',
     paramwise_cfg=dict(
         backbone_top_lr_mult=0.1,
         layer_decay_rate=0.5,
     ))
 
-# Cosine annealing must use a per-group RELATIVE minimum (eta_min_ratio) instead
-# of the base config's absolute eta_min (1e-6): with layer-wise decay the deepest
-# stages have lr below 1e-6, and an absolute eta_min would push their lr back up.
-# eta_min_ratio=0.01 means every group decays to 1% of its own lr.
-max_epochs = 50
-base_lr = 1e-4
+# Same epoch schedule as the base finetune config: 30 epochs, warmup over
+# epochs 0–2, then cosine through max_epochs. Cosine annealing uses a per-group
+# RELATIVE minimum (eta_min_ratio) instead of the base config's absolute eta_min
+# (1e-6): with layer-wise decay the deepest stages have lr below 1e-6, and an
+# absolute eta_min would push their lr back up. eta_min_ratio=0.01 means every
+# group decays to 1% of its own lr, matching the base head schedule's 0.01 floor.
 param_scheduler = [
     dict(
         type='LinearLR',
         start_factor=1.0e-2,
-        by_epoch=False,
         begin=0,
-        end=500),
+        end=2,  # first two epochs; end is exclusive
+        by_epoch=True,
+        convert_to_iter_based=True),
     dict(
         type='CosineAnnealingLR',
         eta_min_ratio=0.01,
-        begin=5,
+        begin=2,  # starts where warmup ends
         end=max_epochs,
-        T_max=max_epochs - 5,
+        T_max=max_epochs - 2,
         by_epoch=True,
         convert_to_iter_based=True),
 ]
