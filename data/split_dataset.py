@@ -8,8 +8,8 @@ from collections import defaultdict
 """
 python split_dataset.py --input Heel_Slides_v1/ --output coco/ --val-ratio 0.19 --seed 46
 python split_dataset.py --input Heel_Slides_v1/ --output coco/ \
-    --subjects-path subjects.csv --subjects-val AnthonyGeorge \
-    --subjects-exclude JaneDoe
+    --subjects-path subjects.csv --excluded-subjects JaneDoe \
+    --val-only-subjects AnthonyGeorge
 
 # App vids v4, 10% val. YordanosWoldebirhan stays in train. No person is
 # more than 25% of val. Same user and date stay in one split.
@@ -491,12 +491,12 @@ def select_val_videos(
     ratio is not used. Excluded subjects are omitted from both splits.
     """
     if subjects_val and not subjects_path:
-        raise ValueError("--subjects-val requires --subjects-path")
+        raise ValueError("--val-only-subjects requires --subjects-path")
     if subjects_exclude and not subjects_path:
-        raise ValueError("--subjects-exclude requires --subjects-path")
+        raise ValueError("--excluded-subjects requires --subjects-path")
     if subjects_path and not subjects_val and not subjects_exclude:
         raise ValueError(
-            "--subjects-path requires --subjects-val or --subjects-exclude"
+            "--subjects-path requires --excluded-subjects or --val-only-subjects"
         )
 
     videos = list(video_to_images.keys())
@@ -517,7 +517,7 @@ def select_val_videos(
         overlap = sorted(exclude_subjects & set(subjects_val or []))
         if overlap:
             print(
-                "⚠️ Subjects in both --subjects-val and --subjects-exclude "
+                "⚠️ Subjects in both --excluded-subjects and --val-only-subjects "
                 f"are excluded: {', '.join(overlap)}"
             )
         present_subjects = {video_subjects[video] for video in videos}
@@ -690,7 +690,7 @@ def split_dataset(
     ))
     if use_caps and (subjects_val or subjects_exclude):
         raise ValueError(
-            "--subjects-val and --subjects-exclude cannot be combined with "
+            "--excluded-subjects and --val-only-subjects cannot be combined with "
             "--train-only-subjects, subject fraction caps, or --require-videos"
         )
     if use_caps:
@@ -842,16 +842,16 @@ if __name__ == "__main__":
         help="CSV of video_id,subject (e.g. AnthonyGeorge_SeatedStraightLegRaise_072426_oN2pDT,AnthonyGeorge)",
     )
     parser.add_argument(
-        "--subjects-val",
-        nargs="+",
-        default=None,
-        help="Subjects to put entirely in val. Remaining subjects go to train. Requires --subjects-path",
-    )
-    parser.add_argument(
-        "--subjects-exclude",
+        "--excluded-subjects",
         nargs="+",
         default=None,
         help="Subjects to omit from both train and val. Requires --subjects-path",
+    )
+    parser.add_argument(
+        "--val-only-subjects",
+        nargs="+",
+        default=None,
+        help="Subjects to put entirely in val. Remaining subjects go to train. Requires --subjects-path",
     )
     parser.add_argument(
         "--train-only-subjects",
@@ -916,8 +916,8 @@ if __name__ == "__main__":
         val_ratio=args.val_ratio,
         seed=args.seed,
         subjects_path=args.subjects_path,
-        subjects_val=parse_subjects(args.subjects_val),
-        subjects_exclude=parse_subjects(args.subjects_exclude),
+        subjects_val=parse_subjects(args.val_only_subjects),
+        subjects_exclude=parse_subjects(args.excluded_subjects),
         train_only_subjects=parse_subjects(args.train_only_subjects),
         max_val_fraction=args.max_subject_val_fraction,
         max_train_fraction=args.max_subject_train_fraction,
