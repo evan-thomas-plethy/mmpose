@@ -245,29 +245,29 @@ custom_hooks = [
         type='mmdet.PipelineSwitchHook',
         switch_epoch=max_epochs - stage2_num_epochs,
         switch_pipeline=train_pipeline_stage2),
-    # Mirrored validation hook - assesses bias for left/right pose orientation
-    dict(
-        type='MirroredValHook',
-        interval=1,
-        priority=48,
-        dataloader=dict(
-            batch_size=16,
-            num_workers=4,
-            dataset=dict(
-                type=dataset_type,
-                data_root=data_root,
-                data_mode=data_mode,
-                ann_file='annotations/person_keypoints_val2017_mirrored.json',
-                data_prefix=dict(img='val2017_mirrored/'),
-                test_mode=True,
-                pipeline=val_pipeline,
-            ),
-        ),
-        evaluator=dict(
-            type='CocoMetric',
-            ann_file=data_root + 'annotations/person_keypoints_val2017_mirrored.json',
-        ),
-    ),
+    # # Mirrored validation hook - assesses bias for left/right pose orientation
+    # dict(
+    #     type='MirroredValHook',
+    #     interval=1,
+    #     priority=48,
+    #     dataloader=dict(
+    #         batch_size=16,
+    #         num_workers=4,
+    #         dataset=dict(
+    #             type=dataset_type,
+    #             data_root=data_root,
+    #             data_mode=data_mode,
+    #             ann_file='annotations/person_keypoints_val2017_mirrored.json',
+    #             data_prefix=dict(img='val2017_mirrored/'),
+    #             test_mode=True,
+    #             pipeline=val_pipeline,
+    #         ),
+    #     ),
+    #     evaluator=dict(
+    #         type='CocoMetric',
+    #         ann_file=data_root + 'annotations/person_keypoints_val2017_mirrored.json',
+    #     ),
+    # ),
     # General validation hook - monitors forgetting on diverse exercises
     dict(
         type='GeneralValHook',
