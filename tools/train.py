@@ -245,12 +245,25 @@ def _register_wandb_metric_backend():
         def add_scalar(self, name, value, step=0, **kwargs):
             import wandb
             if wandb.run is not None:
-                wandb.log({name: value})
+                wandb.log({name: value, "epoch": step})
 
         def add_scalars(self, scalar_dict, step=0, file_path=None, **kwargs):
             import wandb
-            if wandb.run is not None:
-                wandb.log(scalar_dict)
+            if wandb.run is None:
+                return
+            # Train logs are emitted every logger interval and carry the
+            # iteration as ``step``. Validation logs once per epoch and passes
+            # that epoch as ``step``.
+            logged_epoch = scalar_dict.get("epoch")
+            if logged_epoch is not None and logged_epoch != step:
+                return
+            payload = {
+                key: value
+                for key, value in scalar_dict.items()
+                if key != "epoch"
+            }
+            payload["epoch"] = logged_epoch if logged_epoch is not None else step
+            wandb.log(payload)
 
         def close(self):
             import wandb
@@ -291,6 +304,8 @@ def add_wandb_logging(cfg, args):
             x_disable_meta=True,
         ),
     )
+    wandb.define_metric("epoch")
+    wandb.define_metric("*", step_metric="epoch")
 
     _register_wandb_metric_backend()
     if not hasattr(cfg, 'vis_backends') or cfg.vis_backends is None:
