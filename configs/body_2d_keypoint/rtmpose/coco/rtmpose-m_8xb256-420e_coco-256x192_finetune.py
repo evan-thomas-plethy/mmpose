@@ -116,6 +116,7 @@ dataset_type = 'CocoDataset'
 data_mode = 'topdown'
 data_root = 'data/coco/'
 general_val_data_root = 'data/coco_general_val/'  # General exercise validation
+custom_data_root = 'data/custom/'  # Custom dataset validation
 
 backend_args = dict(backend='local')
 
@@ -287,6 +288,31 @@ custom_hooks = [
         evaluator=dict(
             type='CocoMetric',
             ann_file=general_val_data_root + 'annotations/general_val.json',
+        ),
+    ),
+    # Custom validation. Override metric_prefix, data_root, and ann_file per run.
+    # Metrics are logged as <metric_prefix>/AP (default custom/AP).
+    dict(
+        type='CustomDatasetHook',
+        metric_prefix='custom',
+        interval=1,
+        priority=48,
+        dataloader=dict(
+            batch_size=16,
+            num_workers=4,
+            dataset=dict(
+                type=dataset_type,
+                data_root=custom_data_root,
+                data_mode=data_mode,
+                ann_file='annotations/person_keypoints_val2017.json',
+                data_prefix=dict(img='custom/'),
+                test_mode=True,
+                pipeline=val_pipeline,
+            ),
+        ),
+        evaluator=dict(
+            type='CocoMetric',
+            ann_file=custom_data_root + 'annotations/person_keypoints_val2017.json',
         ),
     ),
     # # Head-only extended LR warmup (default 500 iters = global LinearLR).

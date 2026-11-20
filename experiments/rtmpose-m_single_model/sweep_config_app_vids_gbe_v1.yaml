@@ -20,7 +20,7 @@
 #   through epoch 30. Both phases update every step.
 # =============================================================================
 
-base_config: "configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune.py"
+base_config: "experiments/v1.py"
 
 experiment_name: "rtmpose-m_single_model"
 # wandb project is rtmpose-m_finetune

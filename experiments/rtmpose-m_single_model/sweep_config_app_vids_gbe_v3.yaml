@@ -14,7 +14,7 @@
 #   python experiments/run_sweep.py experiments/rtmpose-m_single_model/sweep_config_app_vids_gbe_v3.yaml
 # =============================================================================
 
-base_config: "configs/body_2d_keypoint/rtmpose/coco/rtmpose-m_8xb256-420e_coco-256x192_finetune.py"
+base_config: "experiments/v3.py"
 
 experiment_name: "rtmpose-m_finetune"
 
