@@ -116,6 +116,7 @@ dataset_type = 'CocoDataset'
 data_mode = 'topdown'
 data_root = 'data/coco/'
 general_val_data_root = 'data/coco_general_val/'  # General exercise validation
+ske_gbe_data_root = 'data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe/'
 
 backend_args = dict(backend='local')
 
@@ -287,6 +288,54 @@ custom_hooks = [
         evaluator=dict(
             type='CocoMetric',
             ann_file=general_val_data_root + 'annotations/general_val.json',
+        ),
+    ),
+    # Held-out seated knee extension videos. Metrics are logged as seated_knee_extension/AP.
+    dict(
+        type='CustomDatasetHook',
+        metric_prefix='seated_knee_extension',
+        interval=1,
+        priority=48,
+        dataloader=dict(
+            batch_size=16,
+            num_workers=4,
+            dataset=dict(
+                type=dataset_type,
+                data_root=ske_gbe_data_root,
+                data_mode=data_mode,
+                ann_file='annotations/seated_knee_extension_val.json',
+                data_prefix=dict(img='../App_Vids_v1_GBE_v1_frames/'),
+                test_mode=True,
+                pipeline=val_pipeline,
+            ),
+        ),
+        evaluator=dict(
+            type='CocoMetric',
+            ann_file=ske_gbe_data_root + 'annotations/seated_knee_extension_val.json',
+        ),
+    ),
+    # Held-out ground based exercise videos. Metrics are logged as ground_based_exercises/AP.
+    dict(
+        type='CustomDatasetHook',
+        metric_prefix='ground_based_exercises',
+        interval=1,
+        priority=48,
+        dataloader=dict(
+            batch_size=16,
+            num_workers=4,
+            dataset=dict(
+                type=dataset_type,
+                data_root=ske_gbe_data_root,
+                data_mode=data_mode,
+                ann_file='annotations/ground_based_exercises_val.json',
+                data_prefix=dict(img='../App_Vids_v1_GBE_v1_frames/'),
+                test_mode=True,
+                pipeline=val_pipeline,
+            ),
+        ),
+        evaluator=dict(
+            type='CocoMetric',
+            ann_file=ske_gbe_data_root + 'annotations/ground_based_exercises_val.json',
         ),
     ),
     # # Head-only extended LR warmup (default 500 iters = global LinearLR).
