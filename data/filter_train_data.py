@@ -238,11 +238,20 @@ def annotation_name_for_dataset(dataset_dir: str) -> str:
     return f"{name}.json"
 
 
+def require_videos_config(paths: list[str] | None) -> str | list[str] | None:
+    """One path stays a string. Two or more are stored as a list."""
+    if not paths:
+        return None
+    if len(paths) == 1:
+        return paths[0]
+    return list(paths)
+
+
 def config_for_this_call(
     base: dict | None,
     train_json: str,
     fraction: float,
-    require_videos: str | None,
+    require_videos: list[str] | None,
     subjects_path: str,
     frame_limit: int | None,
 ) -> dict:
@@ -267,8 +276,9 @@ def config_for_this_call(
         config["min-fraction-train-max-subject"] = fraction
     else:
         config["frame-limit"] = frame_limit
-    if require_videos is not None:
-        config["require-videos"] = require_videos
+    stored_require = require_videos_config(require_videos)
+    if stored_require is not None:
+        config["require-videos"] = stored_require
     elif kept_require is not None:
         config["require-videos"] = kept_require
     return config
@@ -348,7 +358,7 @@ def filter_train_json(
     train_json: str,
     output_path: str,
     fraction: float,
-    require_videos: str | None,
+    require_videos: list[str] | None,
     subjects_path: str,
     removed_json: str | None,
     frame_limit: int | None,
@@ -368,7 +378,9 @@ def filter_train_json(
         kept = drop_listed_videos(videos, remove_ids)
     else:
         if require_videos:
-            listed_required = load_id_list(require_videos)
+            listed_required = []
+            for path in require_videos:
+                listed_required.extend(load_id_list(path))
             required_ids = required_video_set(listed_required)
             present = {
                 video_prefix(image.get("file_name", ""))
@@ -377,7 +389,7 @@ def filter_train_json(
             }
             print(
                 f"Required videos present: {len(present)} "
-                f"(list has {len(listed_required)} ids)"
+                f"({len(required_ids)} ids from {len(require_videos)} files)"
             )
         videos = build_videos(images, required_ids, video_subjects)
         random.seed(42)
@@ -463,10 +475,12 @@ def main() -> None:
     )
     parser.add_argument(
         "--require-videos",
+        nargs="+",
         default=None,
         help=(
-            "Text file of video ids that must stay in the dataset. "
-            "A line may be video_id or video_id: date"
+            "One or more text files of video ids that must stay in the dataset. "
+            "A line may be video_id or video_id: date. One path is stored as a "
+            "string; two or more are stored as a list."
         ),
     )
     parser.add_argument(
