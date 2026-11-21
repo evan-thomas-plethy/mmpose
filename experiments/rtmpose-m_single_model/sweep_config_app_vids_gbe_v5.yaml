@@ -1,17 +1,19 @@
 # =============================================================================
-# Winning v4 setting on App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe.
+# Winning v4 setting on App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe
+# and App_Vids_v2_GBE_v4_val10_subject25_lyingperson_require_ske_gbe.
 # Best v4 runs were unfreeze stage3 at base LR 1e-4 (frozen_stages=2 trains
 # stage3 and stage4). Primary val and mirrored val are the val10 split.
 # Held-out vals are annotations/seated_knee_extension_val.json and
 # annotations/ground_based_exercises_val.json.
-# Train and val frames are data/App_Vids_v1_GBE_v1_frames/. General val is
+# Train and val frames are data/App_Vids_v1_GBE_v1_lyingperson_frames/. General val is
 # data/webex-general-val/.
 #
 # experiments/v5.py hook layout: custom_hooks.2 is MirroredValHook,
 # custom_hooks.3 is GeneralValHook, custom_hooks.4 is seated knee extension,
 # and custom_hooks.5 is ground based exercises. experiments/v5_unfreeze.py
-# adds the layer-wise LR constructor. Head LR stays 1e-4. Stage4 peaks at
-# 1e-5 and stage3 at 5e-6. Cosine floors each group at 1% of its own peak.
+# adds the layer-wise LR constructor. Stages 3 and 4 train. The lying-person
+# dataset is also run at base LR 3e-5. Stage4 peaks at 0.1x the base
+# and stage3 at 0.05x. Cosine floors each group at 1% of its own peak.
 # =============================================================================
 # Run with:
 #   python experiments/run_sweep.py experiments/rtmpose-m_single_model/sweep_config_app_vids_gbe_v5.yaml
@@ -19,16 +21,16 @@
 
 base_config: "experiments/v5_unfreeze.py"
 
-experiment_name: "rtmpose-m_finetune"
+experiment_name: "rtmpose-m_finetune_ske_gbe_exercise_sets_val"
 
 _ske_gbe: &ske_gbe
   train_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe/"
-  train_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_frames/"
+  train_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_frames/"
   val_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe/"
-  val_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_frames/"
+  val_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_frames/"
   val_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe/annotations/person_keypoints_val2017.json"
   test_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe/"
-  test_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_frames/"
+  test_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_frames/"
   test_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe/annotations/person_keypoints_val2017.json"
   custom_hooks.2.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe/"
   custom_hooks.2.dataloader.dataset.data_prefix.img: "val2017_mirrored/"
@@ -40,17 +42,56 @@ _ske_gbe: &ske_gbe
   custom_hooks.4.metric_prefix: "seated_knee_extension"
   custom_hooks.4.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe/"
   custom_hooks.4.dataloader.dataset.ann_file: "annotations/seated_knee_extension_val.json"
-  custom_hooks.4.dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_frames/"
+  custom_hooks.4.dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_frames/"
   custom_hooks.4.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe/annotations/seated_knee_extension_val.json"
   custom_hooks.5.metric_prefix: "ground_based_exercises"
   custom_hooks.5.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe/"
   custom_hooks.5.dataloader.dataset.ann_file: "annotations/ground_based_exercises_val.json"
-  custom_hooks.5.dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_frames/"
+  custom_hooks.5.dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_frames/"
   custom_hooks.5.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe/annotations/ground_based_exercises_val.json"
 
+_ske_gbe_lyingperson: &ske_gbe_lyingperson
+  train_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_require_ske_gbe/"
+  train_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_frames/"
+  val_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_require_ske_gbe/"
+  val_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_frames/"
+  val_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_require_ske_gbe/annotations/person_keypoints_val2017.json"
+  test_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_require_ske_gbe/"
+  test_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_frames/"
+  test_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_require_ske_gbe/annotations/person_keypoints_val2017.json"
+  custom_hooks.2.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_require_ske_gbe/"
+  custom_hooks.2.dataloader.dataset.data_prefix.img: "val2017_mirrored/"
+  custom_hooks.2.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_require_ske_gbe/annotations/person_keypoints_val2017_mirrored.json"
+  custom_hooks.3.dataloader.dataset.data_root: "data/webex-general-val/"
+  custom_hooks.3.dataloader.dataset.ann_file: "annotations/general_val.json"
+  custom_hooks.3.dataloader.dataset.data_prefix.img: "general_val/"
+  custom_hooks.3.evaluator.ann_file: "data/webex-general-val/annotations/general_val.json"
+  custom_hooks.4.metric_prefix: "seated_knee_extension"
+  custom_hooks.4.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_require_ske_gbe/"
+  custom_hooks.4.dataloader.dataset.ann_file: "annotations/seated_knee_extension_val.json"
+  custom_hooks.4.dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_frames/"
+  custom_hooks.4.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_require_ske_gbe/annotations/seated_knee_extension_val.json"
+  custom_hooks.5.metric_prefix: "ground_based_exercises"
+  custom_hooks.5.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_require_ske_gbe/"
+  custom_hooks.5.dataloader.dataset.ann_file: "annotations/ground_based_exercises_val.json"
+  custom_hooks.5.dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_frames/"
+  custom_hooks.5.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_require_ske_gbe/annotations/ground_based_exercises_val.json"
+
 experiments:
-  - name: "v2_v4_subject25_require_ske_gbe_unfreeze_stage3_lr1e-4"
+  - name: "v2_v4_val10_subject25_require_ske_gbe_unfreeze_stage3_lr1e-4"
     overrides:
       model.backbone.frozen_stages: 2
       optim_wrapper.optimizer.lr: 1.0e-4
       <<: *ske_gbe
+
+  - name: "v2_v4_val10_subject25_require_ske_gbe_lyingperson_unfreeze_stage3_lr3e-5"
+    overrides:
+      model.backbone.frozen_stages: 2
+      optim_wrapper.optimizer.lr: 3.0e-5
+      <<: *ske_gbe_lyingperson
+
+  - name: "v2_v4_val10_subject25_require_ske_gbe_lyingperson_unfreeze_stage3_lr1e-4"
+    overrides:
+      model.backbone.frozen_stages: 2
+      optim_wrapper.optimizer.lr: 1.0e-4
+      <<: *ske_gbe_lyingperson
