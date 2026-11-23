@@ -1,0 +1,123 @@
+# =============================================================================
+# Winning v4 setting on three InfiniteForm sizes mixed into the lying-person
+# subject25 split. frozen_stages=2 trains stage3 and stage4. Base LR is 1e-4.
+# Primary val and mirrored val are the val10 split. Held-out vals are
+# annotations/seated_knee_extension_val.json and
+# annotations/ground_based_exercises_val.json.
+# Train and val frames are
+# data/App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/. General val is
+# data/webex-general-val/.
+#
+# experiments/v5.py hook layout: custom_hooks.2 is MirroredValHook,
+# custom_hooks.3 is GeneralValHook, custom_hooks.4 is seated knee extension,
+# and custom_hooks.5 is ground based exercises. experiments/v5_unfreeze.py
+# adds the layer-wise LR constructor. Stage4 peaks at 1e-5 and stage3 at
+# 5e-6. Cosine floors each group at 1% of its own peak.
+# =============================================================================
+# Run with:
+#   python experiments/run_sweep.py experiments/rtmpose-m_single_model/sweep_config_app_vids_gbe_v5p1.yaml
+# =============================================================================
+
+base_config: "experiments/v5_unfreeze.py"
+
+experiment_name: "rtmpose-m_finetune_ske_gbe_exercise_sets_val"
+
+_infiniteform736: &infiniteform736
+  train_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm736_require_ske_gbe/"
+  train_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+  val_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm736_require_ske_gbe/"
+  val_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+  val_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm736_require_ske_gbe/annotations/person_keypoints_val2017.json"
+  test_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm736_require_ske_gbe/"
+  test_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+  test_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm736_require_ske_gbe/annotations/person_keypoints_val2017.json"
+  custom_hooks.2.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm736_require_ske_gbe/"
+  custom_hooks.2.dataloader.dataset.data_prefix.img: "val2017_mirrored/"
+  custom_hooks.2.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm736_require_ske_gbe/annotations/person_keypoints_val2017_mirrored.json"
+  custom_hooks.3.dataloader.dataset.data_root: "data/webex-general-val/"
+  custom_hooks.3.dataloader.dataset.ann_file: "annotations/general_val.json"
+  custom_hooks.3.dataloader.dataset.data_prefix.img: "general_val/"
+  custom_hooks.3.evaluator.ann_file: "data/webex-general-val/annotations/general_val.json"
+  custom_hooks.4.metric_prefix: "seated_knee_extension"
+  custom_hooks.4.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm736_require_ske_gbe/"
+  custom_hooks.4.dataloader.dataset.ann_file: "annotations/seated_knee_extension_val.json"
+  custom_hooks.4.dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+  custom_hooks.4.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm736_require_ske_gbe/annotations/seated_knee_extension_val.json"
+  custom_hooks.5.metric_prefix: "ground_based_exercises"
+  custom_hooks.5.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm736_require_ske_gbe/"
+  custom_hooks.5.dataloader.dataset.ann_file: "annotations/ground_based_exercises_val.json"
+  custom_hooks.5.dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+  custom_hooks.5.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm736_require_ske_gbe/annotations/ground_based_exercises_val.json"
+
+_infiniteform1472: &infiniteform1472
+  train_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm1472_require_ske_gbe/"
+  train_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+  val_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm1472_require_ske_gbe/"
+  val_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+  val_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm1472_require_ske_gbe/annotations/person_keypoints_val2017.json"
+  test_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm1472_require_ske_gbe/"
+  test_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+  test_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm1472_require_ske_gbe/annotations/person_keypoints_val2017.json"
+  custom_hooks.2.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm1472_require_ske_gbe/"
+  custom_hooks.2.dataloader.dataset.data_prefix.img: "val2017_mirrored/"
+  custom_hooks.2.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm1472_require_ske_gbe/annotations/person_keypoints_val2017_mirrored.json"
+  custom_hooks.3.dataloader.dataset.data_root: "data/webex-general-val/"
+  custom_hooks.3.dataloader.dataset.ann_file: "annotations/general_val.json"
+  custom_hooks.3.dataloader.dataset.data_prefix.img: "general_val/"
+  custom_hooks.3.evaluator.ann_file: "data/webex-general-val/annotations/general_val.json"
+  custom_hooks.4.metric_prefix: "seated_knee_extension"
+  custom_hooks.4.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm1472_require_ske_gbe/"
+  custom_hooks.4.dataloader.dataset.ann_file: "annotations/seated_knee_extension_val.json"
+  custom_hooks.4.dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+  custom_hooks.4.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm1472_require_ske_gbe/annotations/seated_knee_extension_val.json"
+  custom_hooks.5.metric_prefix: "ground_based_exercises"
+  custom_hooks.5.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm1472_require_ske_gbe/"
+  custom_hooks.5.dataloader.dataset.ann_file: "annotations/ground_based_exercises_val.json"
+  custom_hooks.5.dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+  custom_hooks.5.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm1472_require_ske_gbe/annotations/ground_based_exercises_val.json"
+
+_infiniteform2944: &infiniteform2944
+  train_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm2944_require_ske_gbe/"
+  train_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+  val_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm2944_require_ske_gbe/"
+  val_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+  val_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm2944_require_ske_gbe/annotations/person_keypoints_val2017.json"
+  test_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm2944_require_ske_gbe/"
+  test_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+  test_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm2944_require_ske_gbe/annotations/person_keypoints_val2017.json"
+  custom_hooks.2.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm2944_require_ske_gbe/"
+  custom_hooks.2.dataloader.dataset.data_prefix.img: "val2017_mirrored/"
+  custom_hooks.2.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm2944_require_ske_gbe/annotations/person_keypoints_val2017_mirrored.json"
+  custom_hooks.3.dataloader.dataset.data_root: "data/webex-general-val/"
+  custom_hooks.3.dataloader.dataset.ann_file: "annotations/general_val.json"
+  custom_hooks.3.dataloader.dataset.data_prefix.img: "general_val/"
+  custom_hooks.3.evaluator.ann_file: "data/webex-general-val/annotations/general_val.json"
+  custom_hooks.4.metric_prefix: "seated_knee_extension"
+  custom_hooks.4.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm2944_require_ske_gbe/"
+  custom_hooks.4.dataloader.dataset.ann_file: "annotations/seated_knee_extension_val.json"
+  custom_hooks.4.dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+  custom_hooks.4.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm2944_require_ske_gbe/annotations/seated_knee_extension_val.json"
+  custom_hooks.5.metric_prefix: "ground_based_exercises"
+  custom_hooks.5.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm2944_require_ske_gbe/"
+  custom_hooks.5.dataloader.dataset.ann_file: "annotations/ground_based_exercises_val.json"
+  custom_hooks.5.dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+  custom_hooks.5.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_lyingperson_InfiniteForm2944_require_ske_gbe/annotations/ground_based_exercises_val.json"
+
+experiments:
+  - name: "v2_v4_val10_subject25_require_ske_gbe_lyingperson_InfiniteForm736_unfreeze_stage3_lr1e-4"
+    overrides:
+      model.backbone.frozen_stages: 2
+      optim_wrapper.optimizer.lr: 1.0e-4
+      <<: *infiniteform736
+
+  - name: "v2_v4_val10_subject25_require_ske_gbe_lyingperson_InfiniteForm1472_unfreeze_stage3_lr1e-4"
+    overrides:
+      model.backbone.frozen_stages: 2
+      optim_wrapper.optimizer.lr: 1.0e-4
+      <<: *infiniteform1472
+
+  - name: "v2_v4_val10_subject25_require_ske_gbe_lyingperson_InfiniteForm2944_unfreeze_stage3_lr1e-4"
+    overrides:
+      model.backbone.frozen_stages: 2
+      optim_wrapper.optimizer.lr: 1.0e-4
+      <<: *infiniteform2944
