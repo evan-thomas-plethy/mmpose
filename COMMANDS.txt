@@ -10,8 +10,12 @@ tmux attach -t train
 
 To shutdown GPU safely
 sudo shutdown -h +1
-# If need to cancel this
+If need to cancel this
 sudo shutdown -c
+
+To clear queued tmux commands, run from a new tab:
+python -c "import termios; f=open('/dev/pts/1'); termios.tcflush(f, termios.TCIFLUSH)"
+(Assuming tmux display -p -t train:0.0 '#{pane_tty}' returned /dev/pts/1)
 ##################################################################################
 
 Please note: In the past, often renamed the current dataset as data/coco.
