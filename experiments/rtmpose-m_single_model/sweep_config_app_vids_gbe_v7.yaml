@@ -3,10 +3,12 @@
 # stage3 and stage4. Base LR is 1e-4. Each run trains on
 # <fold>_lyingperson and scores that fold's original inner val.
 #
-# Each held-out person is scored twice. held_out_<subject>_ske.json is the
-# held-out frames whose videos are in seated_knee_extension.txt.
-# held_out_<subject>_non_ske.json is every other held-out frame. Those files
-# are written by data/make_held_out_ske_vals.py
+# Each held-out person is scored on the non-empty splits.
+# held_out_<subject>_ske.json is seated_knee_extension.txt.
+# held_out_<subject>_gbe.json is ground_based_exercises.txt.
+# held_out_<subject>_non_ske_gbe.json is every other held-out frame.
+# Empty files are omitted. Unused hook slots are enabled: false.
+# Those files are written by data/make_held_out_ske_gbe_vals.py
 # next to the original held-out val. The original val is not changed.
 #
 # Frames for train, inner val, and the held-out hooks are
@@ -16,8 +18,8 @@
 # data/webex-general-val/.
 #
 # experiments/v7.py hook layout: custom_hooks.2 is GeneralValHook.
-# custom_hooks.3 and .4 are the first subject's non-ske and ske vals.
-# custom_hooks.5 and .6 are the second subject's non-ske and ske vals.
+# custom_hooks.3 through .8 score the non-empty held-out vals, in subject order.
+# A fold with fewer than six vals sets the remaining hooks to enabled: false.
 # Stage4 peaks at 1e-5 and stage3 at 5e-6.
 # =============================================================================
 # Run with:
@@ -45,26 +47,28 @@ _evan_yordanos: &evan_yordanos
   test_dataloader.dataset.data_prefix.img: *frames
   test_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/evan_yordanos/annotations/person_keypoints_val2017.json"
   <<: *general_val
-  custom_hooks.3.metric_prefix: "held_out_evan_non_ske"
+  custom_hooks.3.metric_prefix: "held_out_evan_non_ske_gbe"
   custom_hooks.3.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/evan_held_out/held_out/"
-  custom_hooks.3.dataloader.dataset.ann_file: "annotations/held_out_evan_non_ske.json"
+  custom_hooks.3.dataloader.dataset.ann_file: "annotations/held_out_evan_non_ske_gbe.json"
   custom_hooks.3.dataloader.dataset.data_prefix.img: *held_out_frames
-  custom_hooks.3.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/evan_held_out/held_out/annotations/held_out_evan_non_ske.json"
+  custom_hooks.3.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/evan_held_out/held_out/annotations/held_out_evan_non_ske_gbe.json"
   custom_hooks.4.metric_prefix: "held_out_evan_ske"
   custom_hooks.4.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/evan_held_out/held_out/"
   custom_hooks.4.dataloader.dataset.ann_file: "annotations/held_out_evan_ske.json"
   custom_hooks.4.dataloader.dataset.data_prefix.img: *held_out_frames
   custom_hooks.4.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/evan_held_out/held_out/annotations/held_out_evan_ske.json"
-  custom_hooks.5.metric_prefix: "held_out_yordanos_non_ske"
-  custom_hooks.5.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/yordanos_held_out/held_out/"
-  custom_hooks.5.dataloader.dataset.ann_file: "annotations/held_out_yordanos_non_ske.json"
+  custom_hooks.5.metric_prefix: "held_out_evan_gbe"
+  custom_hooks.5.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/evan_held_out/held_out/"
+  custom_hooks.5.dataloader.dataset.ann_file: "annotations/held_out_evan_gbe.json"
   custom_hooks.5.dataloader.dataset.data_prefix.img: *held_out_frames
-  custom_hooks.5.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/yordanos_held_out/held_out/annotations/held_out_yordanos_non_ske.json"
-  custom_hooks.6.metric_prefix: "held_out_yordanos_ske"
+  custom_hooks.5.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/evan_held_out/held_out/annotations/held_out_evan_gbe.json"
+  custom_hooks.6.metric_prefix: "held_out_yordanos_gbe"
   custom_hooks.6.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/yordanos_held_out/held_out/"
-  custom_hooks.6.dataloader.dataset.ann_file: "annotations/held_out_yordanos_ske.json"
+  custom_hooks.6.dataloader.dataset.ann_file: "annotations/held_out_yordanos_gbe.json"
   custom_hooks.6.dataloader.dataset.data_prefix.img: *held_out_frames
-  custom_hooks.6.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/yordanos_held_out/held_out/annotations/held_out_yordanos_ske.json"
+  custom_hooks.6.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/yordanos_held_out/held_out/annotations/held_out_yordanos_gbe.json"
+  custom_hooks.7.enabled: false
+  custom_hooks.8.enabled: false
 
 _rishi_jamie: &rishi_jamie
   val_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/rishi_jamie/"
@@ -74,26 +78,28 @@ _rishi_jamie: &rishi_jamie
   test_dataloader.dataset.data_prefix.img: *frames
   test_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/rishi_jamie/annotations/person_keypoints_val2017.json"
   <<: *general_val
-  custom_hooks.3.metric_prefix: "held_out_rishi_non_ske"
+  custom_hooks.3.metric_prefix: "held_out_rishi_non_ske_gbe"
   custom_hooks.3.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/rishi_held_out/held_out/"
-  custom_hooks.3.dataloader.dataset.ann_file: "annotations/held_out_rishi_non_ske.json"
+  custom_hooks.3.dataloader.dataset.ann_file: "annotations/held_out_rishi_non_ske_gbe.json"
   custom_hooks.3.dataloader.dataset.data_prefix.img: *held_out_frames
-  custom_hooks.3.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/rishi_held_out/held_out/annotations/held_out_rishi_non_ske.json"
+  custom_hooks.3.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/rishi_held_out/held_out/annotations/held_out_rishi_non_ske_gbe.json"
   custom_hooks.4.metric_prefix: "held_out_rishi_ske"
   custom_hooks.4.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/rishi_held_out/held_out/"
   custom_hooks.4.dataloader.dataset.ann_file: "annotations/held_out_rishi_ske.json"
   custom_hooks.4.dataloader.dataset.data_prefix.img: *held_out_frames
   custom_hooks.4.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/rishi_held_out/held_out/annotations/held_out_rishi_ske.json"
-  custom_hooks.5.metric_prefix: "held_out_jamie_non_ske"
-  custom_hooks.5.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/jamie_held_out/held_out/"
-  custom_hooks.5.dataloader.dataset.ann_file: "annotations/held_out_jamie_non_ske.json"
+  custom_hooks.5.metric_prefix: "held_out_rishi_gbe"
+  custom_hooks.5.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/rishi_held_out/held_out/"
+  custom_hooks.5.dataloader.dataset.ann_file: "annotations/held_out_rishi_gbe.json"
   custom_hooks.5.dataloader.dataset.data_prefix.img: *held_out_frames
-  custom_hooks.5.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/jamie_held_out/held_out/annotations/held_out_jamie_non_ske.json"
-  custom_hooks.6.metric_prefix: "held_out_jamie_ske"
+  custom_hooks.5.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/rishi_held_out/held_out/annotations/held_out_rishi_gbe.json"
+  custom_hooks.6.metric_prefix: "held_out_jamie_non_ske_gbe"
   custom_hooks.6.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/jamie_held_out/held_out/"
-  custom_hooks.6.dataloader.dataset.ann_file: "annotations/held_out_jamie_ske.json"
+  custom_hooks.6.dataloader.dataset.ann_file: "annotations/held_out_jamie_non_ske_gbe.json"
   custom_hooks.6.dataloader.dataset.data_prefix.img: *held_out_frames
-  custom_hooks.6.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/jamie_held_out/held_out/annotations/held_out_jamie_ske.json"
+  custom_hooks.6.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/jamie_held_out/held_out/annotations/held_out_jamie_non_ske_gbe.json"
+  custom_hooks.7.enabled: false
+  custom_hooks.8.enabled: false
 
 _tim_nina: &tim_nina
   val_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/tim_nina/"
@@ -103,26 +109,36 @@ _tim_nina: &tim_nina
   test_dataloader.dataset.data_prefix.img: *frames
   test_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/tim_nina/annotations/person_keypoints_val2017.json"
   <<: *general_val
-  custom_hooks.3.metric_prefix: "held_out_tim_non_ske"
+  custom_hooks.3.metric_prefix: "held_out_tim_non_ske_gbe"
   custom_hooks.3.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/tim_held_out/held_out/"
-  custom_hooks.3.dataloader.dataset.ann_file: "annotations/held_out_tim_non_ske.json"
+  custom_hooks.3.dataloader.dataset.ann_file: "annotations/held_out_tim_non_ske_gbe.json"
   custom_hooks.3.dataloader.dataset.data_prefix.img: *held_out_frames
-  custom_hooks.3.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/tim_held_out/held_out/annotations/held_out_tim_non_ske.json"
+  custom_hooks.3.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/tim_held_out/held_out/annotations/held_out_tim_non_ske_gbe.json"
   custom_hooks.4.metric_prefix: "held_out_tim_ske"
   custom_hooks.4.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/tim_held_out/held_out/"
   custom_hooks.4.dataloader.dataset.ann_file: "annotations/held_out_tim_ske.json"
   custom_hooks.4.dataloader.dataset.data_prefix.img: *held_out_frames
   custom_hooks.4.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/tim_held_out/held_out/annotations/held_out_tim_ske.json"
-  custom_hooks.5.metric_prefix: "held_out_nina_non_ske"
-  custom_hooks.5.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/nina_held_out/held_out/"
-  custom_hooks.5.dataloader.dataset.ann_file: "annotations/held_out_nina_non_ske.json"
+  custom_hooks.5.metric_prefix: "held_out_tim_gbe"
+  custom_hooks.5.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/tim_held_out/held_out/"
+  custom_hooks.5.dataloader.dataset.ann_file: "annotations/held_out_tim_gbe.json"
   custom_hooks.5.dataloader.dataset.data_prefix.img: *held_out_frames
-  custom_hooks.5.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/nina_held_out/held_out/annotations/held_out_nina_non_ske.json"
-  custom_hooks.6.metric_prefix: "held_out_nina_ske"
+  custom_hooks.5.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/tim_held_out/held_out/annotations/held_out_tim_gbe.json"
+  custom_hooks.6.metric_prefix: "held_out_nina_non_ske_gbe"
   custom_hooks.6.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/nina_held_out/held_out/"
-  custom_hooks.6.dataloader.dataset.ann_file: "annotations/held_out_nina_ske.json"
+  custom_hooks.6.dataloader.dataset.ann_file: "annotations/held_out_nina_non_ske_gbe.json"
   custom_hooks.6.dataloader.dataset.data_prefix.img: *held_out_frames
-  custom_hooks.6.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/nina_held_out/held_out/annotations/held_out_nina_ske.json"
+  custom_hooks.6.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/nina_held_out/held_out/annotations/held_out_nina_non_ske_gbe.json"
+  custom_hooks.7.metric_prefix: "held_out_nina_ske"
+  custom_hooks.7.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/nina_held_out/held_out/"
+  custom_hooks.7.dataloader.dataset.ann_file: "annotations/held_out_nina_ske.json"
+  custom_hooks.7.dataloader.dataset.data_prefix.img: *held_out_frames
+  custom_hooks.7.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/nina_held_out/held_out/annotations/held_out_nina_ske.json"
+  custom_hooks.8.metric_prefix: "held_out_nina_gbe"
+  custom_hooks.8.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/nina_held_out/held_out/"
+  custom_hooks.8.dataloader.dataset.ann_file: "annotations/held_out_nina_gbe.json"
+  custom_hooks.8.dataloader.dataset.data_prefix.img: *held_out_frames
+  custom_hooks.8.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/nina_held_out/held_out/annotations/held_out_nina_gbe.json"
 
 _anthony_joey: &anthony_joey
   val_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/anthony_joey/"
@@ -132,26 +148,28 @@ _anthony_joey: &anthony_joey
   test_dataloader.dataset.data_prefix.img: *frames
   test_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/anthony_joey/annotations/person_keypoints_val2017.json"
   <<: *general_val
-  custom_hooks.3.metric_prefix: "held_out_anthony_non_ske"
+  custom_hooks.3.metric_prefix: "held_out_anthony_non_ske_gbe"
   custom_hooks.3.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/anthony_held_out/held_out/"
-  custom_hooks.3.dataloader.dataset.ann_file: "annotations/held_out_anthony_non_ske.json"
+  custom_hooks.3.dataloader.dataset.ann_file: "annotations/held_out_anthony_non_ske_gbe.json"
   custom_hooks.3.dataloader.dataset.data_prefix.img: *held_out_frames
-  custom_hooks.3.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/anthony_held_out/held_out/annotations/held_out_anthony_non_ske.json"
-  custom_hooks.4.metric_prefix: "held_out_anthony_ske"
+  custom_hooks.3.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/anthony_held_out/held_out/annotations/held_out_anthony_non_ske_gbe.json"
+  custom_hooks.4.metric_prefix: "held_out_anthony_gbe"
   custom_hooks.4.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/anthony_held_out/held_out/"
-  custom_hooks.4.dataloader.dataset.ann_file: "annotations/held_out_anthony_ske.json"
+  custom_hooks.4.dataloader.dataset.ann_file: "annotations/held_out_anthony_gbe.json"
   custom_hooks.4.dataloader.dataset.data_prefix.img: *held_out_frames
-  custom_hooks.4.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/anthony_held_out/held_out/annotations/held_out_anthony_ske.json"
-  custom_hooks.5.metric_prefix: "held_out_joey_non_ske"
+  custom_hooks.4.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/anthony_held_out/held_out/annotations/held_out_anthony_gbe.json"
+  custom_hooks.5.metric_prefix: "held_out_joey_non_ske_gbe"
   custom_hooks.5.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/joey_held_out/held_out/"
-  custom_hooks.5.dataloader.dataset.ann_file: "annotations/held_out_joey_non_ske.json"
+  custom_hooks.5.dataloader.dataset.ann_file: "annotations/held_out_joey_non_ske_gbe.json"
   custom_hooks.5.dataloader.dataset.data_prefix.img: *held_out_frames
-  custom_hooks.5.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/joey_held_out/held_out/annotations/held_out_joey_non_ske.json"
-  custom_hooks.6.metric_prefix: "held_out_joey_ske"
+  custom_hooks.5.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/joey_held_out/held_out/annotations/held_out_joey_non_ske_gbe.json"
+  custom_hooks.6.metric_prefix: "held_out_joey_gbe"
   custom_hooks.6.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_folds/joey_held_out/held_out/"
-  custom_hooks.6.dataloader.dataset.ann_file: "annotations/held_out_joey_ske.json"
+  custom_hooks.6.dataloader.dataset.ann_file: "annotations/held_out_joey_gbe.json"
   custom_hooks.6.dataloader.dataset.data_prefix.img: *held_out_frames
-  custom_hooks.6.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/joey_held_out/held_out/annotations/held_out_joey_ske.json"
+  custom_hooks.6.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_folds/joey_held_out/held_out/annotations/held_out_joey_gbe.json"
+  custom_hooks.7.enabled: false
+  custom_hooks.8.enabled: false
 
 experiments:
   - name: "evan_yordanos_lyingperson_unfreeze_stage3_lr1e-4"

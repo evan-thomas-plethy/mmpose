@@ -25,6 +25,8 @@ class CustomDatasetHook(Hook):
             ``prefix`` unless the evaluator config already sets ``prefix``.
         interval (int): Run every N epochs. Default: 1.
         priority (int): Hook priority. Default: 48.
+        enabled (bool): When False, the hook does not build a dataloader or
+            score a dataset. Default: True.
     """
 
     def __init__(
@@ -34,18 +36,24 @@ class CustomDatasetHook(Hook):
         metric_prefix: str = 'custom',
         interval: int = 1,
         priority: int = 48,
+        enabled: bool = True,
     ):
         self.priority = priority
         self.metric_prefix = metric_prefix
         self.dataloader_cfg = copy.deepcopy(dataloader)
         self.evaluator_cfg = copy.deepcopy(evaluator)
         self.interval = interval
+        if isinstance(enabled, str):
+            enabled = enabled.strip().lower() in {"1", "true", "yes"}
+        self.enabled = bool(enabled)
         self._dataloader = None
         self._evaluator = None
         self._message_hub_key = f'{metric_prefix.replace("/", "_")}_metrics'
 
     def before_run(self, runner: Runner) -> None:
         """Build dataloader and evaluator before training starts."""
+        if not self.enabled:
+            return
         dataloader_cfg = copy.deepcopy(self.dataloader_cfg)
         dataloader_cfg.setdefault('persistent_workers', True)
         dataloader_cfg.setdefault('drop_last', False)
@@ -68,6 +76,8 @@ class CustomDatasetHook(Hook):
 
     def after_val_epoch(self, runner: Runner, metrics: dict = None) -> None:
         """Run secondary validation after each primary validation."""
+        if not self.enabled:
+            return
         epoch = runner.epoch
 
         if epoch % self.interval != 0:

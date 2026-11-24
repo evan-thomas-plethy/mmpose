@@ -5,12 +5,14 @@ _base_ = ['./v4_unfreeze.py']
 #   0 EMAHook
 #   1 PipelineSwitchHook (stage2 length is 0, so it does not switch)
 #   2 GeneralValHook
-#   3 first subject's non-ske val
+#   3 first subject's non-ske-gbe val
 #   4 first subject's ske val
-#   5 second subject's non-ske val
-#   6 second subject's ske val
-# The sweep points 3–6 at held_out_<subject>_non_ske.json and
-# held_out_<subject>_ske.json.
+#   5 first subject's gbe val
+#   6 second subject's non-ske-gbe val
+#   7 second subject's ske val
+#   8 second subject's gbe val
+# The sweep points these at held_out_<subject>_non_ske_gbe.json,
+# held_out_<subject>_ske.json, and held_out_<subject>_gbe.json.
 
 dataset_type = 'CocoDataset'
 data_mode = 'topdown'
@@ -19,6 +21,8 @@ custom_data_root = 'data/custom/'
 custom_data_root_2 = 'data/custom_2/'
 custom_data_root_3 = 'data/custom_3/'
 custom_data_root_4 = 'data/custom_4/'
+custom_data_root_5 = 'data/custom_5/'
+custom_data_root_6 = 'data/custom_6/'
 backend_args = dict(backend='local')
 val_pipeline = [
     dict(type='LoadImage', backend_args=backend_args),
@@ -186,6 +190,52 @@ custom_hooks = [
         evaluator=dict(
             type='CocoMetric',
             ann_file=custom_data_root_4 + 'annotations/person_keypoints_val2017.json',
+        ),
+    ),
+    dict(
+        type='CustomDatasetHook',
+        metric_prefix='custom_5',
+        interval=1,
+        priority=48,
+        dataloader=dict(
+            batch_size=16,
+            num_workers=4,
+            dataset=dict(
+                type=dataset_type,
+                data_root=custom_data_root_5,
+                data_mode=data_mode,
+                ann_file='annotations/person_keypoints_val2017.json',
+                data_prefix=dict(img='custom/'),
+                test_mode=True,
+                pipeline=val_pipeline,
+            ),
+        ),
+        evaluator=dict(
+            type='CocoMetric',
+            ann_file=custom_data_root_5 + 'annotations/person_keypoints_val2017.json',
+        ),
+    ),
+    dict(
+        type='CustomDatasetHook',
+        metric_prefix='custom_6',
+        interval=1,
+        priority=48,
+        dataloader=dict(
+            batch_size=16,
+            num_workers=4,
+            dataset=dict(
+                type=dataset_type,
+                data_root=custom_data_root_6,
+                data_mode=data_mode,
+                ann_file='annotations/person_keypoints_val2017.json',
+                data_prefix=dict(img='custom/'),
+                test_mode=True,
+                pipeline=val_pipeline,
+            ),
+        ),
+        evaluator=dict(
+            type='CocoMetric',
+            ann_file=custom_data_root_6 + 'annotations/person_keypoints_val2017.json',
         ),
     ),
 ]
