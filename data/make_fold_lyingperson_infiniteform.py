@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Build the lying-person and InfiniteForm736 fold datasets used by v6.
 
-Copies data/App_Vids_v2_GBE_v4_folds/rishi_jamie and tim_nina. Val stays the
-copied fold split. Lying_Person_Dataset_Single_Ann.json is merged into each
+Copies the four pair folds rishi_jamie, tim_nina, evan_yordanos, and
+anthony_joey. A fold whose two output directories already exist is skipped.
+Val stays the copied fold split. Lying_Person_Dataset_Single_Ann.json is merged into each
 training JSON, the same full set make_lyingperson_require_ske_gbe.py adds
 (that merge has no seed). A second copy of each lying-person fold then gets
 the first 736 images from one Random(seed=42) shuffle of
@@ -27,7 +28,7 @@ from merge_datasets import merge_coco
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FOLDS_DIR = "App_Vids_v2_GBE_v4_folds"
-FOLDS = ("rishi_jamie", "tim_nina")
+FOLDS = ("rishi_jamie", "tim_nina", "evan_yordanos", "anthony_joey")
 LYING_JSON = "Lying_Person_Dataset_Single_Ann/Lying_Person_Dataset_Single_Ann.json"
 INFINITEFORM_JSON = "InfiniteForm_Single_Ann/InfiniteForm_Single_Ann.json"
 TRAIN_JSON = "person_keypoints_train2017.json"
@@ -113,8 +114,8 @@ def write_copy(source: str, dest: str, train: dict) -> str:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Copy the rishi_jamie and tim_nina folds, merge the lying-person "
-            "set into train, and merge the same InfiniteForm736 sample."
+            "Copy each pair fold, merge the lying-person set into train, "
+            "and merge the same InfiniteForm736 sample."
         )
     )
     parser.add_argument("--folds", nargs="+", default=list(FOLDS))
@@ -133,16 +134,23 @@ def main() -> None:
         if not os.path.isfile(path):
             raise SystemExit(f"Missing file: {path}")
 
-    outputs = []
+    pending = []
     for name in args.folds:
         source = fold_dir(name)
         train_path = os.path.join(source, "annotations", TRAIN_JSON)
         if not os.path.isfile(train_path):
             raise SystemExit(f"Missing file: {train_path}")
-        outputs.extend((lying_dir(name), infiniteform_dir(name, args.count)))
-    existing = [path for path in outputs if os.path.exists(path)]
-    if existing:
-        raise SystemExit("Output already exists: " + ", ".join(existing))
+        destinations = (lying_dir(name), infiniteform_dir(name, args.count))
+        existing = [path for path in destinations if os.path.exists(path)]
+        if len(existing) == len(destinations):
+            print(f"Skipping {name}: outputs already exist")
+            continue
+        if existing:
+            raise SystemExit("Output already exists: " + ", ".join(existing))
+        pending.append(name)
+    if not pending:
+        print("Nothing to build")
+        return
 
     lying = load_json(args.lying_json)
     infiniteform = load_json(args.infiniteform_json)
@@ -157,7 +165,7 @@ def main() -> None:
     sample["info"]["sample_seed"] = args.seed
     extra_config = {"infiniteform-images": args.count, "infiniteform-seed": args.seed}
 
-    for name in args.folds:
+    for name in pending:
         source = fold_dir(name)
         train = load_json(os.path.join(source, "annotations", TRAIN_JSON))
         collisions = colliding_names(train, lying)
