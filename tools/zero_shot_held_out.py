@@ -44,7 +44,7 @@ DEFAULT_OUT = "data/zero_shot_full_held_out_ap.csv"
 PRED_DIR = Path("data/predictions")
 FOLDS_DIR = Path("data/App_Vids_v2_GBE_v4_folds")
 HELD_OUT_FRAMES = "../../../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
-SPLIT_RE = re.compile(r"^held_out_(?P<subject>[a-z]+)_(?P<split>ske|gbe)$")
+SUBJECT_RE = re.compile(r"^held_out_(?P<subject>[a-z]+)_")
 CSV_FIELDS = ("model", "subject", "split", "ap")
 
 
@@ -95,7 +95,7 @@ def subjects_for_experiment(overrides):
     for key, value in overrides.items():
         parts = key.split(".")
         if len(parts) == 3 and parts[0] == "custom_hooks" and parts[2] == "metric_prefix":
-            match = SPLIT_RE.match(str(value))
+            match = SUBJECT_RE.match(str(value))
             if match:
                 indexed.append((int(parts[1]), match.group("subject")))
     for _, subject in sorted(indexed):
