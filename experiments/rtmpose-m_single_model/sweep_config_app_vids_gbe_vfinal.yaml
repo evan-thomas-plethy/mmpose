@@ -1,0 +1,42 @@
+# =============================================================================
+# One run on App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe_lyingperson.
+# frozen_stages=2 trains stage3 and stage4. Base LR is 1e-4. Stage4 peaks
+# at 1e-5 and stage3 at 5e-6.
+#
+# Train, val, and mirrored val are that dataset. It has no seated-knee or
+# ground-based held-out files. Frames are
+# data/App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/. General val is
+# data/webex-general-val/.
+#
+# experiments/v1.py hook layout: custom_hooks.2 is MirroredValHook and
+# custom_hooks.3 is GeneralValHook. experiments/vfinal_unfreeze.py adds the
+# layer-wise LR constructor.
+# =============================================================================
+# Run with:
+#   python experiments/run_sweep.py experiments/rtmpose-m_single_model/sweep_config_app_vids_gbe_vfinal.yaml
+# =============================================================================
+
+base_config: "experiments/vfinal_unfreeze.py"
+
+experiment_name: "rtmpose-m_finetune"
+
+experiments:
+  - name: "v2_v4_val10_subject25_require_ske_gbe_lyingperson_unfreeze_stage3_lr1e-4"
+    overrides:
+      model.backbone.frozen_stages: 2
+      optim_wrapper.optimizer.lr: 1.0e-4
+      train_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe_lyingperson/"
+      train_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+      val_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe_lyingperson/"
+      val_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+      val_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe_lyingperson/annotations/person_keypoints_val2017.json"
+      test_dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe_lyingperson/"
+      test_dataloader.dataset.data_prefix.img: "../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
+      test_evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe_lyingperson/annotations/person_keypoints_val2017.json"
+      custom_hooks.2.dataloader.dataset.data_root: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe_lyingperson/"
+      custom_hooks.2.dataloader.dataset.data_prefix.img: "val2017_mirrored/"
+      custom_hooks.2.evaluator.ann_file: "data/App_Vids_v2_GBE_v4_val10_subject25_require_ske_gbe_lyingperson/annotations/person_keypoints_val2017_mirrored.json"
+      custom_hooks.3.dataloader.dataset.data_root: "data/webex-general-val/"
+      custom_hooks.3.dataloader.dataset.ann_file: "annotations/general_val.json"
+      custom_hooks.3.dataloader.dataset.data_prefix.img: "general_val/"
+      custom_hooks.3.evaluator.ann_file: "data/webex-general-val/annotations/general_val.json"

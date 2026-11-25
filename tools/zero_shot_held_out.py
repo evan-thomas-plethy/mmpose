@@ -4,8 +4,9 @@
 The pretrained checkpoint is scored on every
 full_held_out_<subject>_ske.json and full_held_out_<subject>_gbe.json that
 exists. Each sweep run is scored only on the ske and gbe files for the two
-subjects that run held out. Missing files are skipped. Only AP is saved to the CSV. Each run also
-writes a COCO JSON of the predicted keypoints to
+subjects that run held out. Missing files are skipped. The CSV has one row per subject and split, with
+finetuned, pretrained, and old_ground_based AP. Each run also writes a COCO
+JSON of the predicted keypoints to
 data/predictions/<model>_<subject>_<split>.json for overlay_dataset.py.
 
 Example:
@@ -45,7 +46,12 @@ PRED_DIR = Path("data/predictions")
 FOLDS_DIR = Path("data/App_Vids_v2_GBE_v4_folds")
 HELD_OUT_FRAMES = "../../../App_Vids_v1_GBE_v1_lyingperson_InfiniteForm_frames/"
 SUBJECT_RE = re.compile(r"^held_out_(?P<subject>[a-z]+)_")
-CSV_FIELDS = ("model", "subject", "split", "ap")
+CSV_FIELDS = ("subject", "split", "finetuned", "pretrained", "old_ground_based")
+OLD_GROUND_BASED = (
+    "work_dirs/rtmpose-m_merged_gbe_v9_gbe_app_vids_various_versions_sweep/"
+    "merged_gbe_v9_app_vids_v4_lyingperson_full_infiniteform_seed4_n736_"
+    "unfreeze_full_ld0.5_lr1e-3"
+)
 
 
 def resolve_checkpoint(path):
@@ -201,12 +207,20 @@ def dataloader_template(cfg):
     raise RuntimeError("Config has no CustomDatasetHook to copy a val dataloader from")
 
 
-def write_csv(path, rows):
+def write_csv(path, row_keys, cells):
     os.makedirs(osp.dirname(osp.abspath(path)) or ".", exist_ok=True)
     with open(path, "w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS)
         writer.writeheader()
-        writer.writerows(rows)
+        for subject, split in row_keys:
+            cell = cells[(subject, split)]
+            writer.writerow({
+                "subject": subject,
+                "split": split,
+                "finetuned": cell.get("finetuned", ""),
+                "pretrained": cell.get("pretrained", ""),
+                "old_ground_based": cell.get("old_ground_based", ""),
+            })
 
 
 def parse_args():
@@ -218,6 +232,12 @@ def parse_args():
         help="Pretrained .pth or URL. Defaults to load_from in the sweep base config.",
     )
     parser.add_argument("--out", default=DEFAULT_OUT, help="CSV of AP scores")
+    parser.add_argument(
+        "--old-ground-based",
+        default=OLD_GROUND_BASED,
+        help="Checkpoint or run directory for the old ground-based model. "
+        "Scored on every full held-out ske and gbe file.",
+    )
     return parser.parse_args()
 
 
@@ -247,13 +267,23 @@ def main():
             "checkpoint": resolve_checkpoint(str(run_dir)),
             "subjects": subjects,
         })
+    old_checkpoint = resolve_checkpoint(args.old_ground_based)
 
     init_default_scope("mmpose")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     template = dataloader_template(cfg)
-    rows = []
+    row_keys = []
+    cells = {}
 
-    def run_one(model_name, model, subject, split, ann_path):
+    def record(column, subject, split, ap):
+        key = (subject, split)
+        if key not in cells:
+            row_keys.append(key)
+            cells[key] = {}
+        cells[key][column] = f"{ap:.4f}"
+        write_csv(args.out, row_keys, cells)
+
+    def run_one(column, pred_name, model, subject, split, ann_path):
         data_root = ann_path.parents[1]
         loader = build_loader(
             template,
@@ -264,24 +294,28 @@ def main():
         if len(loader.dataset) == 0:
             raise SystemExit(f"{ann_path} has no images")
         ap, results = score_ap(model, loader, ann_path.resolve())
-        pred_path = PRED_DIR / f"{model_name}_{subject}_{split}.json"
+        pred_path = PRED_DIR / f"{pred_name}_{subject}_{split}.json"
         write_predictions(pred_path, prediction_coco(ann_path, results))
         print(
-            f"{model_name}  {subject}  {split}  AP {ap:.4f}  "
+            f"{column}  {subject}  {split}  AP {ap:.4f}  "
             f"images={len(loader.dataset)}  {pred_path}"
         )
-        rows.append({
-            "model": model_name,
-            "subject": subject,
-            "split": split,
-            "ap": f"{ap:.4f}",
-        })
-        write_csv(args.out, rows)
+        record(column, subject, split, ap)
+
+    evals = existing_evals(all_subjects(experiments))
 
     print(f"pretrained: {pretrained}")
     model = load_model(cfg, pretrained, device)
-    for subject, split, ann_path in existing_evals(all_subjects(experiments)):
-        run_one("pretrained", model, subject, split, ann_path)
+    for subject, split, ann_path in evals:
+        run_one("pretrained", "pretrained", model, subject, split, ann_path)
+    del model
+    if device == "cuda":
+        torch.cuda.empty_cache()
+
+    print(f"old_ground_based: {old_checkpoint}")
+    model = load_model(cfg, old_checkpoint, device)
+    for subject, split, ann_path in evals:
+        run_one("old_ground_based", "old_ground_based", model, subject, split, ann_path)
     del model
     if device == "cuda":
         torch.cuda.empty_cache()
@@ -290,7 +324,7 @@ def main():
         print(f"{fold['name']}: {fold['checkpoint']}")
         model = load_model(cfg, fold["checkpoint"], device)
         for subject, split, ann_path in existing_evals(fold["subjects"]):
-            run_one(fold["name"], model, subject, split, ann_path)
+            run_one("finetuned", fold["name"], model, subject, split, ann_path)
         del model
         if device == "cuda":
             torch.cuda.empty_cache()
